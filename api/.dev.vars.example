@@ -4,8 +4,8 @@
 # For production, set these as Worker secrets in the Cloudflare dashboard (or via wrangler secret).
 
 SUPABASE_URL=http://127.0.0.1:54321
-SUPABASE_ANON_KEY=
-SUPABASE_SERVICE_ROLE_KEY=
+SUPABASE_PUBLISHABLE_KEY=
+SUPABASE_SECRET_KEY=
 
 # Frontend origin for CORS (Vite dev server)
 APP_URL=http://localhost:5173

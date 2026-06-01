@@ -12,7 +12,7 @@ declare module 'hono' {
 export const supabaseMiddleware = (): MiddlewareHandler<HonoEnv> => async (c, next) => {
   const token = c.req.header('Authorization')?.replace('Bearer ', '')
 
-  const supabase = createClient<Database>(c.env.SUPABASE_URL, c.env.SUPABASE_ANON_KEY, {
+  const supabase = createClient<Database>(c.env.SUPABASE_URL, c.env.SUPABASE_PUBLISHABLE_KEY, {
     global: {
       headers: token ? { Authorization: `Bearer ${token}` } : {},
     },
@@ -31,6 +31,6 @@ export const getAuthenticatedUser = async (c: Context) => {
 
 // Bypasses RLS — use only in webhooks / admin routes
 export const getServiceSupabase = (c: Context<HonoEnv>) =>
-  createClient<Database>(c.env.SUPABASE_URL, c.env.SUPABASE_SERVICE_ROLE_KEY, {
+  createClient<Database>(c.env.SUPABASE_URL, c.env.SUPABASE_SECRET_KEY, {
     auth: { persistSession: false, autoRefreshToken: false },
   })
