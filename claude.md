@@ -1,4 +1,4 @@
-# BlueLearn – Context for Claude
+# Bluelearn – Context for Claude
 
 ## Quick Start
 - **Repo**: pnpm monorepo with `app/` (React 19 frontend), `api/` (Hono on Workers), `supabase/` (PostgreSQL).

@@ -1,4 +1,4 @@
-# Cursor Rules for BlueLearn
+# Cursor Rules for Bluelearn
 
 This repository contains a pnpm monorepo with:
 - `app/` – React 19 + TanStack Start + Tailwind CSS v4 + shadcn/ui frontend

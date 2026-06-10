@@ -1,7 +1,7 @@
-# Copilot Instructions – BlueLearn
+# Copilot Instructions – Bluelearn
 
 ## Project Overview
-BlueLearn is an open‑source, prerequisite‑graph education platform built as a pnpm monorepo with:
+Bluelearn is an open‑source, prerequisite‑graph education platform built as a pnpm monorepo with:
 - **Frontend (app/)**: React 19, TanStack Start (SSR), TanStack Router, Tailwind CSS v4, shadcn/ui
 - **API (api/)**: Hono on Cloudflare Workers, TypeScript, Supabase for auth/data
 - **Database (supabase/)**: PostgreSQL with Row‑Level Security (RLS), migrations

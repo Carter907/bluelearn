@@ -1,10 +1,10 @@
-# Agent Handbook – BlueLearn
+# Agent Handbook – Bluelearn
 
-This document provides the essential context an agent needs to work effectively in the BlueLearn repository. It focuses on non‑obvious knowledge that saves time and avoids common pitfalls.
+This document provides the essential context an agent needs to work effectively in the Bluelearn repository. It focuses on non‑obvious knowledge that saves time and avoids common pitfalls.
 
 ## Project Overview
 
-BlueLearn is an open‑source, prerequisite‑graph education platform. It is a **pnpm workspace monorepo** containing:
+Bluelearn is an open‑source, prerequisite‑graph education platform. It is a **pnpm workspace monorepo** containing:
 
 - **`app/`** – React 19 frontend with TanStack Start (SSR), TanStack Router, Tailwind CSS v4, and shadcn/ui components.
 - **`api/`** – Hono‑based API running on Cloudflare Workers, using Supabase for authentication and data.
