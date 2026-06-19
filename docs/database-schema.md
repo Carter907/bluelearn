@@ -158,6 +158,9 @@ Relationships between guide bases. This table *is* the global graph.
 - `from_guide_base_id`: the source guide base of the edge.
 - `to_guide_base_id`: the target guide base of the edge.
 - `edge_type`: what kind of relationship this edge represents (see allowed types below).
+- `is_suspended`: flag to temporarily exclude an edge from graph traversal without deleting it. A suspended edge keeps its row (so it can be restored), still occupies its `(from, to)` slot for uniqueness, and is still counted by the cycle-prevention trigger so un-suspending can never resurrect a cycle. Walkthrough generation, level computation, reachability, and path projection must filter out suspended edges.
+- `created_at`: row creation time.
+- `updated_at`: last update time, maintained by a trigger.
 
 For prerequisite edges, direction means:
 
