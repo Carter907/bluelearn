@@ -3,15 +3,17 @@ import { requireUser } from '../middleware/auth.middleware'
 import type { HonoEnv } from '../types'
 
 export const mediaRouter = new Hono<HonoEnv>()
-  // Upload a file to object storage
+  // Upload a file to object storage and store entry in database
   .post('/upload', requireUser, async (c) => {
-    const supabase = c.get('supabase')
-
     const body = await c.req.formData()
     const file = body.get('file') as File | null
 
-    if (!file || !(file instanceof File))
-      return c.json({ error: 'No file uploaded' }, 400)
+    if (!file) 
+      return c.json({ error: 'Missing required field: file' }, 400)
+    if (!(file instanceof File))
+      return c.json({ error: 'Field "file" must be a file upload, got ' + typeof file }, 400)
+
+    const supabase = c.get('supabase')
 
     // Upload to storage
     const { data: storageData, error: storageError } = await supabase.storage
