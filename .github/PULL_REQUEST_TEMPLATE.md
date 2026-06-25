@@ -38,3 +38,4 @@
 - [ ] Followed the app layout conventions
 - [ ] No new dependencies, or new dependencies are justified and AGPL-compatible
 - [ ] Change does not violate any non-negotiable principle
+- [ ] Documentation only no changes to the codebase so no tests required
