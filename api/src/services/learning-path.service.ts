@@ -2,6 +2,7 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 import type { CreateLearningPathInput } from '@bluelearn/schemas'
 import type { Database } from '../database.types'
 import { ServiceError } from '../lib/service-error'
+import { getRevisionSnapshot } from './learning-path-revision.service'
 
 type DB = SupabaseClient<Database>
 
@@ -26,70 +27,6 @@ async function resolvePath(supabase: DB, rawSlug: string) {
   if (error) throw new ServiceError(error.message, 500)
   if (!data) throw new ServiceError('Learning path not found', 404)
   return data
-}
-
-// All of a revision's nodes (included or skipped) plus the frozen projected edges
-// (does not include skipped nodes) and the raw prerequisite edges among every node,
-// read live from the guide graph.
-async function getRevisionSnapshot(supabase: DB, revisionId: string) {
-  const { data: nodeRows, error: nodeError } = await supabase
-    .from('learning_path_revision_nodes')
-    .select('guide_base_id, guide_id, is_target, is_included, note')
-    .eq('revision_id', revisionId)
-
-  if (nodeError) throw new ServiceError(nodeError.message, 500)
-
-  const baseIds = (nodeRows ?? []).map((n) => n.guide_base_id)
-  const baseMeta = new Map<string, { slug: string | null; title: string | null }>()
-
-  if (baseIds.length > 0) {
-    const { data: bases, error: baseError } = await supabase
-      .from('guide_bases')
-      .select('id, slug, title')
-      .in('id', baseIds)
-
-    if (baseError) throw new ServiceError(baseError.message, 500)
-    for (const b of bases ?? []) baseMeta.set(b.id, { slug: b.slug, title: b.title })
-  }
-
-  const nodes = (nodeRows ?? []).map((n) => ({
-    guide_base_id: n.guide_base_id,
-    guide_id: n.guide_id,
-    slug: baseMeta.get(n.guide_base_id)?.slug ?? null,
-    title: baseMeta.get(n.guide_base_id)?.title ?? null,
-    is_target: n.is_target,
-    is_included: n.is_included,
-    note: n.note,
-  }))
-
-  const [projected, raw] = await Promise.all([
-    supabase
-      .from('learning_path_revision_edges')
-      .select('from_guide_base_id, to_guide_base_id')
-      .eq('revision_id', revisionId),
-    baseIds.length > 0
-      ? supabase
-        .from('guide_edges')
-        .select('from_guide_base_id, to_guide_base_id')
-        .eq('edge_type', 'prerequisite')
-        .eq('is_suspended', false)
-        .in('from_guide_base_id', baseIds)
-        .in('to_guide_base_id', baseIds)
-      : null,
-  ])
-
-  if (projected.error) throw new ServiceError(projected.error.message, 500)
-  if (raw?.error) throw new ServiceError(raw.error.message, 500)
-
-  const toEdge = (e: { from_guide_base_id: string; to_guide_base_id: string }) => ({
-    from_id: e.from_guide_base_id,
-    to_id: e.to_guide_base_id,
-  })
-
-  const projected_edges = (projected.data ?? []).map(toEdge)
-  const raw_edges = (raw?.data ?? []).map(toEdge)
-
-  return { nodes, projected_edges, raw_edges }
 }
 
 // List published paths, newest first. RLS hides drafts from non-authors.
