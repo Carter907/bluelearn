@@ -1,30 +1,52 @@
 import { Hono } from 'hono'
 import { requireUser } from '../middleware/auth.middleware'
 import type { HonoEnv } from '../types'
+import { zValidator } from '@hono/zod-validator'
+import { createLearningPathSchema } from '@bluelearn/schemas'
+import {
+  archiveLearningPath,
+  createLearningPath,
+  getLearningPathBySlug,
+  listLearningPathRevisions,
+  listPublishedLearningPaths,
+} from '../services/learning-path.service'
 
 export const learningPathsRouter = new Hono<HonoEnv>()
-  // List published learning paths
-  .get('/', (c) => c.json({ error: 'Not implemented' }, 501))
+  // Returns published paths as { learning_paths }.
+  .get('/', async (c) => {
+    const learning_paths = await listPublishedLearningPaths(c.get('supabase'))
+    return c.json({ learning_paths })
+  })
 
-  // Create a draft path: shell + revision 1, seeding the closure of the
-  // target(s) given in the body as the initial node set
-  .post('/', requireUser, (c) => c.json({ error: 'Not implemented' }, 501))
+  // 201 with { revision_id } for the editor route.
+  .post('/', requireUser, zValidator('json', createLearningPathSchema), async (c) => {
+    const { revision_id } = await createLearningPath(c.get('supabase'), c.req.valid('json'))
+    return c.json({ revision_id }, 201)
+  })
 
-  // Open a path: resolve the live current_revision_id and return
-  // its full snapshot
-  .get('/:slug', (c) => c.json({ error: 'Not implemented' }, 501))
+  // Returns the path and its live revision's snapshot as { path, snapshot }.
+  .get('/:slug', async (c) => {
+    const { path, snapshot } = await getLearningPathBySlug(c.get('supabase'), c.req.param('slug'))
+    return c.json({ path, snapshot })
+  })
 
-  // Archive the path
-  .delete('/:slug', requireUser, (c) => c.json({ error: 'Not implemented' }, 501))
+  // Archives the path. 404 if missing or not permitted.
+  .delete('/:slug', requireUser, async (c) => {
+    const path = await archiveLearningPath(c.get('supabase'), c.req.param('slug'))
+    return c.json({ path })
+  })
 
-  // Revision history for this path
-  .get('/:slug/revisions', (c) => c.json({ error: 'Not implemented' }, 501))
+  // Returns the revision history as { revisions }, newest first.
+  .get('/:slug/revisions', async (c) => {
+    const revisions = await listLearningPathRevisions(c.get('supabase'), c.req.param('slug'))
+    return c.json({ revisions })
+  })
 
-  // Start a new draft revision
+  // 201 with { revision_id } for the new draft.
   .post('/:slug/revisions', requireUser, (c) => c.json({ error: 'Not implemented' }, 501))
 
 export const learningPathRevisionsRouter = new Hono<HonoEnv>()
-  // Gets the full snapshot of one revision: metadata, nodes, and projected edges.
+  // Gets the full snapshot of one revision: metadata, nodes, projected edges, and raw edges.
   .get('/:id', (c) => c.json({ error: 'Not implemented' }, 501))
 
   // Overwrite a draft revision's metadata (draft only)
