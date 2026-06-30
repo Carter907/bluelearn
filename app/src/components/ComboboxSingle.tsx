@@ -1,32 +1,19 @@
-import {
-    Combobox,
-    ComboboxContent,
-    ComboboxEmpty,
-    ComboboxInput,
-    ComboboxItem,
-    ComboboxList,
-} from "@/components/ui/combobox";
+import { Combobox } from "@/components/ui/combobox"
+import { useState } from "react";
 
 type PropTypes = {
-    id: string;
-    placeholder: string;
-    items: any;
+  id: string;
+  items: Array<string>;
 }
 
-export function ComboboxSingle({ id, placeholder, items }: PropTypes) {
-    return (
-        <Combobox id={id} items={items}>
-            <ComboboxInput placeholder={placeholder} />
-            <ComboboxContent>
-                <ComboboxEmpty>No items found.</ComboboxEmpty>
-                <ComboboxList>
-                    {(item) => (
-                        <ComboboxItem key={item} value={item}>
-                            {item}
-                        </ComboboxItem>
-                    )}
-                </ComboboxList>
-            </ComboboxContent>
-        </Combobox>
-    )
+export function ComboboxSingle({ items }: PropTypes) {
+  const [value, setValue] = useState<string>("");
+
+  return (
+    <Combobox
+      items={items}
+      value={value}
+      onValueChange={setValue}
+    />
+  )
 }
