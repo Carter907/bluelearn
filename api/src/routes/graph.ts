@@ -8,16 +8,8 @@ import { requireUser } from '../middleware/auth.middleware'
 import type { HonoEnv } from "../types"
 import { ServiceError } from '../lib/service-error'
 
-// Separate routers
-export const prerequisitesRouter = new Hono()
-export const todosRouter = new Hono()
-
-//POST /prerequisites
-prerequisitesRouter.post(
-  '/',
-  requireUser,
-  zValidator('json', createPrerequisiteSchema),
-  async (c) => {
+export const prerequisitesRouter = new Hono<HonoEnv>()
+  .post('/', requireUser, zValidator('json', createPrerequisiteSchema), async (c) => {
     const supabase = c.get('supabase')
     const { from_guide_base_id, to_guide_base_id } = c.req.valid('json')
 
@@ -49,50 +41,42 @@ prerequisitesRouter.post(
     }
 
     return c.json({ edge: data }, 201)
-  }
-)
+  })
+  .delete('/:id', requireUser, async (c) => {
+    const supabase = c.get('supabase')
+    const id = c.req.param('id')
+  
+    const { data, error } = await supabase
+      .from('guide_edges')
+      .update({ is_suspended: true })
+      .eq('id', id)
+      .select('id, is_suspended')
+      .single()
+  
+    if (error) {
+      throw new ServiceError('Failed to suspend prerequisite', 500)
+    }
+  
+    return c.json({ edge: data }, 200)
+  })
 
-// DELETE /prerequisites/:id
-prerequisitesRouter.delete('/:id', requireUser, async (c) => {
-  const supabase = c.get('supabase')
-  const id = c.req.param('id')
+export const todosRouter = new Hono<HonoEnv>()
+  .get('/', async (c) => {
+    const supabase = c.get('supabase')
+  
+    const { data, error } = await supabase
+      .from('todo_prerequisites')
+      .select('id, dependent_guide_base_id, title, status')
+      .eq('status', 'open')
+  
+    if (error) {
+      throw new ServiceError('Failed to fetch todos', 500)
+    }
+  
+    return c.json({ todos: data }, 200)
+  })
 
-  const { data, error } = await supabase
-    .from('guide_edges')
-    .update({ is_suspended: true })
-    .eq('id', id)
-    .select('id, is_suspended')
-    .single()
-
-  if (error) {
-    throw new ServiceError('Failed to suspend prerequisite', 500)
-  }
-
-  return c.json({ edge: data }, 200)
-})
-
-// GET /todos
-todosRouter.get('/', async (c) => {
-  const supabase = c.get('supabase')
-
-  const { data, error } = await supabase
-    .from('todo_prerequisites')
-    .select('id, dependent_guide_base_id, title, status')
-    .eq('status', 'open')
-
-  if (error) {
-    throw new ServiceError('Failed to fetch todos', 500)
-  }
-
-  return c.json({ todos: data }, 200)
-})
-
-// POST /todos
-todosRouter.post(
-  '/',
-  requireUser,
-  zValidator('json', createTodoPrerequisiteSchema),
-  async (c) => {
+  .post('/', requireUser, zValidator('json', createTodoPrerequisiteSchema), async (c) => {
     const supabase = c.get('supabase')
     const { dependent_guide_base_id, title } = c.req.valid('json')
 
@@ -111,5 +95,4 @@ todosRouter.post(
     }
 
     return c.json({ todo: data }, 201)
-  }
-)
+  })
