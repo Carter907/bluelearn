@@ -1,5 +1,7 @@
-import Editor from "../editor/Editor";
+import { Suspense, lazy } from "react";
 import { StepperActionHeader } from "@/components/contribute/StepperActionHeader";
+
+const Editor = lazy(() => import("../editor/Editor"));
 
 type PropTypes = {
   Stepper: any;
@@ -10,7 +12,15 @@ export const Content = ({ Stepper }: PropTypes) => {
     <Stepper.Content step="content">
       <StepperActionHeader title={"Content"} Stepper={Stepper} />
 
-      <Editor />
+      <Suspense
+        fallback={
+          <div className="flex h-40 items-center justify-center text-sm text-muted-foreground">
+            Loading Editor...
+          </div>
+        }
+      >
+        <Editor />
+      </Suspense>
     </Stepper.Content>
   );
 };
