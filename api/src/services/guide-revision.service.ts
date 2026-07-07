@@ -92,11 +92,7 @@ export async function submitRevision(supabase: DB, id: string) {
 // compared with strict equality; when changed, `diff` carries a unified-diff
 // style string (lines starting with " " are unchanged, "-" only in `from`,
 // "+" only in `to`). null === null is treated as unchanged.
-export async function diffRevisions(
-  supabase: DB,
-  id: string,
-  otherId: string
-) {
+export async function diffRevisions(supabase: DB, id: string, otherId: string) {
   const [fromRes, toRes] = await Promise.all([
     supabase
       .from("guide_revisions")
@@ -149,5 +145,3 @@ function toRevisionRef(row: {
     change_summary: row.change_summary,
   };
 }
-
-

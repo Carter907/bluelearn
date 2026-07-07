@@ -449,5 +449,3 @@ function toRevisionRef(row: {
     change_summary: row.change_summary,
   };
 }
-
-
