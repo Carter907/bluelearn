@@ -131,4 +131,91 @@ describe("POST /reviews/cases/{id}/decisions", () => {
     expect(res.status).toBe(201);
     await expectToMatchSpec(res, "POST", "/reviews/cases/{id}/decisions");
   });
+
+  it("records a rejecting decision with its rubric reasons", async () => {
+    const { token, userId } = await makeUser();
+    const reviewCase = await seedQueueCase(userId, "Statistics");
+
+    const res = await app.request(
+      `/reviews/cases/${reviewCase.id}/decisions`,
+      jsonAuth(token, "POST", {
+        decision: "rejected",
+        notes: "Missing prerequisites.",
+        reasons: ["missing_required_information", "clarity_issue"],
+      }),
+      env
+    );
+
+    expect(res.status).toBe(201);
+    await expectToMatchSpec(res, "POST", "/reviews/cases/{id}/decisions");
+    const body = (await res.json()) as { decision: { reasons: string[] } };
+    expect(body.decision.reasons).toEqual([
+      "missing_required_information",
+      "clarity_issue",
+    ]);
+  });
+
+  it("400s a reject with no rubric reasons", async () => {
+    const { token, userId } = await makeUser();
+    const reviewCase = await seedQueueCase(userId, "Statistics");
+
+    const res = await app.request(
+      `/reviews/cases/${reviewCase.id}/decisions`,
+      jsonAuth(token, "POST", {
+        decision: "rejected",
+        notes: "Missing prerequisites.",
+        reasons: [],
+      }),
+      env
+    );
+
+    expect(res.status).toBe(400);
+  });
+
+  it("drops the case from the caller's queue once decided", async () => {
+    const { token, userId } = await makeUser();
+    const reviewCase = await seedQueueCase(userId, "Statistics");
+
+    await app.request(
+      `/reviews/cases/${reviewCase.id}/decisions`,
+      jsonAuth(token, "POST", { decision: "approved" }),
+      env
+    );
+
+    const res = await app.request(
+      "/reviews/queue",
+      { headers: { Authorization: `Bearer ${token}` } },
+      env
+    );
+    const body = (await res.json()) as { cases: Array<{ id: string }> };
+    expect(body.cases.map((c) => c.id)).not.toContain(reviewCase.id);
+  });
+
+  it("lets a panelist re-vote, revising their decision and reasons", async () => {
+    const { token, userId } = await makeUser();
+    const reviewCase = await seedQueueCase(userId, "Statistics");
+
+    await app.request(
+      `/reviews/cases/${reviewCase.id}/decisions`,
+      jsonAuth(token, "POST", {
+        decision: "rejected",
+        notes: "Missing prerequisites.",
+        reasons: ["clarity_issue"],
+      }),
+      env
+    );
+
+    const res = await app.request(
+      `/reviews/cases/${reviewCase.id}/decisions`,
+      jsonAuth(token, "POST", { decision: "approved", notes: "Fixed." }),
+      env
+    );
+
+    expect(res.status).toBe(201);
+    const body = (await res.json()) as {
+      decision: { decision: string; reasons: string[] };
+    };
+    expect(body.decision.decision).toBe("approved");
+    expect(body.decision.reasons).toEqual([]);
+  });
 });

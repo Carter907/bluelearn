@@ -1,6 +1,6 @@
 description: >
-  Cast a panel vote. An approve carries only notes; a reject must
-  also cite at least one rubric reason.
+  Cast a panel vote. An approve carries optional notes; a reject must carry
+  notes plus at least one rubric reason.
 oneOf:
   - title: Approve
     type: object
@@ -12,7 +12,7 @@ oneOf:
       notes:
         type: string
         example: All the information is correct.
-    required: [decision, notes]
+    required: [decision]
   - title: Reject
     type: object
     additionalProperties: false

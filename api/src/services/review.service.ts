@@ -1,4 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import type { DecisionReason } from "@bluelearn/schemas";
 import type { Database } from "../database.types";
 import { ServiceError } from "../lib/service-error";
 
@@ -260,7 +261,11 @@ export async function castDecision(
   supabase: DB,
   userId: string,
   caseId: string,
-  input: { decision: ReviewOutcome; notes?: string | null }
+  input: {
+    decision: ReviewOutcome;
+    notes?: string | null;
+    reasons?: DecisionReason[];
+  }
 ) {
   const { data: panel, error: panelError } = await supabase
     .from("review_panels")
@@ -276,12 +281,13 @@ export async function castDecision(
   if (!panel)
     throw new ServiceError("No active review panel for this case", 400);
 
+  // A completed seat is still valid: re-votes revise the existing decision.
   const { data: member, error: memberError } = await supabase
     .from("panel_members")
     .select("id")
     .eq("panel_id", panel.id)
     .eq("member_id", userId)
-    .eq("status", "assigned")
+    .in("status", ["assigned", "completed"])
     .maybeSingle();
 
   if (memberError) {
@@ -309,11 +315,47 @@ export async function castDecision(
     throw new ServiceError("Failed to record decision", 500);
   }
 
+  // Reasons are replaced wholesale so a re-vote can change or clear them: a
+  // reject carries its cited rubric items, an approve carries none.
+  const reasons = input.decision === "rejected" ? (input.reasons ?? []) : [];
+
+  const { error: clearError } = await supabase
+    .from("review_decision_reasons")
+    .delete()
+    .eq("decision_id", decision.id);
+
+  if (clearError) {
+    console.error(clearError);
+    throw new ServiceError("Failed to record decision", 500);
+  }
+
+  if (reasons.length > 0) {
+    const { error: reasonError } = await supabase
+      .from("review_decision_reasons")
+      .insert(reasons.map((reason) => ({ decision_id: decision.id, reason })));
+
+    if (reasonError) {
+      console.error(reasonError);
+      throw new ServiceError("Failed to record decision", 500);
+    }
+  }
+
+  // Casting a decision completes the seat so the case leaves the caller's queue.
+  const { error: seatError } = await supabase
+    .from("panel_members")
+    .update({ status: "completed" })
+    .eq("id", member.id);
+
+  if (seatError) {
+    console.error(seatError);
+    throw new ServiceError("Failed to record decision", 500);
+  }
+
   return {
     id: decision.id,
     decision: decision.decision,
     notes: decision.notes,
-    reasons: [],
+    reasons,
     created_at: decision.created_at,
   };
 }
