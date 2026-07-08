@@ -104,6 +104,58 @@ export function MathView({ nodeKey, equation, inline }: MathViewProps) {
     };
   }, [isFocused]);
 
+  // Intercept all keyboard events at the native DOM level to prevent Lexical/MDXEditor from consuming them
+  useEffect(() => {
+    if (!isFocused) return;
+
+    const container = containerRef.current;
+    if (!container) return;
+
+    const handleKeyEvents = (evt: Event) => {
+      const e = evt as KeyboardEvent;
+      // Escape and Enter are handled specifically to exit/navigate the node
+      if (e.type === "keydown") {
+        if (e.key === "Escape") {
+          e.preventDefault();
+          e.stopPropagation();
+          if (ref.current) {
+            ref.current.blur();
+          }
+          editor.getRootElement()?.focus();
+          return;
+        }
+        if (e.key === "Enter") {
+          e.preventDefault();
+          e.stopPropagation();
+          if (ref.current) {
+            ref.current.blur();
+          }
+          editor.getRootElement()?.focus();
+          editor.update(() => {
+            const node = $getNodeByKey(nodeKey);
+            if (node !== null) {
+              node.selectNext();
+            }
+          });
+          return;
+        }
+      }
+
+      // For all other keys, stop propagation so Lexical doesn't see them
+      e.stopPropagation();
+    };
+
+    container.addEventListener("keydown", handleKeyEvents);
+    container.addEventListener("keypress", handleKeyEvents);
+    container.addEventListener("keyup", handleKeyEvents);
+
+    return () => {
+      container.removeEventListener("keydown", handleKeyEvents);
+      container.removeEventListener("keypress", handleKeyEvents);
+      container.removeEventListener("keyup", handleKeyEvents);
+    };
+  }, [editor, nodeKey, isFocused]);
+
   // Blur the math field if the node is no longer selected in Lexical
   useEffect(() => {
     if (!isSelected && ref.current) {
@@ -199,28 +251,6 @@ export function MathView({ nodeKey, equation, inline }: MathViewProps) {
     });
   };
 
-  const handleKeyDown = (e: any) => {
-    if (e.key === "Escape") {
-      e.preventDefault();
-      if (ref.current) {
-        ref.current.blur();
-      }
-      editor.getRootElement()?.focus();
-    } else if (e.key === "Enter") {
-      e.preventDefault();
-      if (ref.current) {
-        ref.current.blur();
-      }
-      editor.getRootElement()?.focus();
-      editor.update(() => {
-        const node = $getNodeByKey(nodeKey);
-        if (node !== null) {
-          node.selectNext();
-        }
-      });
-    }
-  };
-
   const isNodeSelected = isSelected;
 
   if (inline) {
@@ -244,7 +274,6 @@ export function MathView({ nodeKey, equation, inline }: MathViewProps) {
           readOnly={!editor.isEditable() || !isFocused}
           onFocus={handleFocus}
           onBlur={handleBlur}
-          onKeyDown={handleKeyDown}
           onPointerDown={handlePointerDown}
           style={{
             minWidth: isFocused ? "8rem" : "0px",
@@ -302,7 +331,6 @@ export function MathView({ nodeKey, equation, inline }: MathViewProps) {
           readOnly={!editor.isEditable() || !isFocused}
           onFocus={handleFocus}
           onBlur={handleBlur}
-          onKeyDown={handleKeyDown}
           onPointerDown={handlePointerDown}
           style={{
             width: "100%",
