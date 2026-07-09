@@ -15,10 +15,6 @@ The schema deliberately keeps the database source of truth small:
 - Store governance records (votes, review cases, panels, decisions) as ground truth.
 - Do not store values that can be derived from the graph.
 
-## Entity Relationship Diagram
-
-Entity Relationship Diagram
-
 ## Tables
 
 ### `profiles`
@@ -237,59 +233,59 @@ Because walkthrough and level generation use the **longest** path, redundant tra
 
 What over-declaration does cost is **graph bloat**: redundant edges clutter the DAG, walkthroughs, and diffs. A later **transitive reduction** pass can drop any edge `A -> C` when a longer path `A -> ... -> C` already exists. This is a tidiness optimization, not a correctness requirement, since levels stay correct without it. 
 
-### `learning_paths`
+### `objectives`
 
-The stable identity of a learning path: it stores no curriculum content of its own and points at whichever revision is currently live.
+The stable identity of an objective: it stores no curriculum content of its own and points at whichever revision is currently live.
 
-- `id`: primary key; the path's stable identity.
-- `slug`: stable URL identifier (e.g. `ml-engineer`), unique **among learning paths**. Learning paths live under their own `/paths/{slug}` route namespace, so a path slug never collides with a guide base slug (`/{base-slug}`) — uniqueness only needs to hold within paths, not site-wide. Derived from the first published revision's title and frozen at first publish; never auto-changed by later title edits, exactly like `guides.slug`.
-- `current_revision_id`: nullable FK to `learning_path_revisions`. Points at the live published revision; null before the path's first publish. Creates a path ↔ revision pointer cycle, so the FK should be deferrable.
-- `status`: node-level disposition `draft | published | archived` (same shape and meaning as `guide_bases.status`). `published` once `current_revision_id` is set; `archived` retires the whole path while leaving the last revision retrievable.
-- `created_by`: FK to `profiles.id`; the path's original author, who must hold the `curator` role.
+- `id`: primary key; the objective's stable identity.
+- `slug`: stable URL identifier (e.g. `ml-engineer`), unique **among objectives**. Objectives live under their own `/objectives/{slug}` route namespace, so an objective slug never collides with a guide base slug (`/{base-slug}`) — uniqueness only needs to hold within objectives, not site-wide. Derived from the first published revision's title and frozen at first publish; never auto-changed by later title edits, exactly like `guides.slug`.
+- `current_revision_id`: nullable FK to `objective_revisions`. Points at the live published revision; null before the objective's first publish. Creates an objective ↔ revision pointer cycle, so the FK should be deferrable.
+- `status`: node-level disposition `draft | published | archived` (same shape and meaning as `guide_bases.status`). `published` once `current_revision_id` is set; `archived` retires the whole objective while leaving the last revision retrievable.
+- `created_by`: FK to `profiles.id`; the objective's original author, who must hold the `curator` role.
 - `created_at`: row creation time.
 - `updated_at`: last update time, maintained by a trigger.
 
-A path stores no `title` or `summary`: both are versioned content on `learning_path_revisions`, so a rename lives in history and is restored on rollback.
+An objective stores no `title` or `summary`: both are versioned content on `objective_revisions`, so a rename lives in history and is restored on rollback.
 
-### `learning_path_revisions`
+### `objective_revisions`
 
-Append-only version history plus the path's editorial metadata, mirroring `guide_revisions`. A published revision is immutable; further edits create a new revision rather than mutating a published one.
+Append-only version history plus the objective's editorial metadata, mirroring `guide_revisions`. A published revision is immutable; further edits create a new revision rather than mutating a published one.
 
 - `id`: primary key of the revision row.
-- `learning_path_id`: which path this revision belongs to (FK to `learning_paths`).
-- `title`: the path's human-facing title as of this revision. Versioned; `learning_paths.slug` is derived from it at first publish and then frozen.
-- `summary`: short description for listings and the path header, as of this revision.
+- `objective_id`: which objective this revision belongs to (FK to `objectives`).
+- `title`: the objective's human-facing title as of this revision. Versioned; `objectives.slug` is derived from it at first publish and then frozen.
+- `summary`: short description for listings and the objective header, as of this revision.
 - `change_summary`: curator's note describing what changed in this revision (like a commit message), driving the history list.
-- `author_id`: who authored this specific revision, who must hold the `curator` role. May differ from the path's original `created_by`, spreading curation credit.
-- `status`: lifecycle state `draft | published`. Learning paths have **no review gate**, so there is no `submitted` (awaiting review) state as on `guide_revisions`; a revision is either an editable draft or one a curator has published.
+- `author_id`: who authored this specific revision, who must hold the `curator` role. May differ from the objective's original `created_by`, spreading curation credit.
+- `status`: lifecycle state `draft | published`. Objectives have **no review gate**, so there is no `submitted` (awaiting review) state as on `guide_revisions`; a revision is either an editable draft or one a curator has published.
 - `created_at`: when the revision (its draft) was created.
 - `updated_at`: last edit time, maintained by a trigger. A draft is edited in place, so this advances during the draft phase and freezes once the revision is published. 
 - `published_at`: when this revision went live, null until then.
 
-Submitting a revision is a direct publish: in one transaction it flips `status = draft → published`, stamps `published_at`, freezes the revision's projected edges, and points `learning_paths.current_revision_id` at it (setting `learning_paths.status = published`, and freezing the slug on first publish). Whether a revision is currently live is read from `learning_paths.current_revision_id`, not from its status.
+Submitting a revision is a direct publish: in one transaction it flips `status = draft → published`, stamps `published_at`, freezes the revision's projected edges, and points `objectives.current_revision_id` at it (setting `objectives.status = published`, and freezing the slug on first publish). Whether a revision is currently live is read from `objectives.current_revision_id`, not from its status.
 
-### `learning_path_revision_nodes`
+### `objective_revision_nodes`
 
-The curriculum: every topic in this revision's target closure, which of them are the path's goals, and which the curator skipped. A row exists for every closure topic; `is_included` distinguishes a kept topic from a skipped one (a soft hide, not a delete), so the editor can still list a skipped topic as a re-includable candidate and edge projection can bridge across it. An absent row means the topic was never in the closure at all.
+The curriculum: every topic in this revision's target closure, which of them are the objective's goals, and which the curator skipped. A row exists for every closure topic; `is_included` distinguishes a kept topic from a skipped one (a soft hide, not a delete), so the editor can still list a skipped topic as a re-includable candidate and edge projection can bridge across it. An absent row means the topic was never in the closure at all.
 
-- `revision_id`: FK to `learning_path_revisions`.
+- `revision_id`: FK to `objective_revisions`.
 - `guide_base_id`: the topic (FK to `guide_bases`).
-- `guide_id`: the guide variant the curator chose for this topic (FK to `guides`). The variant is pinned, but its content is read live through `guides.current_revision_id` (the path shows the up-to-date guide, not a frozen body).
-- `is_target`: boolean, default `false`. `true` marks this node as one of the path's goal topics (an endpoint the curriculum was built to reach). A revision may have several targets (a path can climb toward Machine Learning *and* Statistics at once).
-- `is_included`: boolean, default `true`. `false` means the curator skipped this topic: the row stays as a re-includable candidate but the topic is dropped from the published curriculum and bridged over by edge projection. Skipping is a soft hide; only included rows reach the published path.
-- `note`: optional curator annotation for this node within the path.
+- `guide_id`: the guide variant the curator chose for this topic (FK to `guides`). The variant is pinned, but its content is read live through `guides.current_revision_id` (the objective shows the up-to-date guide, not a frozen body).
+- `is_target`: boolean, default `false`. `true` marks this node as one of the objective's goal topics (an endpoint the curriculum was built to reach). A revision may have several targets (an objective can climb toward Machine Learning *and* Statistics at once).
+- `is_included`: boolean, default `true`. `false` means the curator skipped this topic: the row stays as a re-includable candidate but the topic is dropped from the published curriculum and bridged over by edge projection. Skipping is a soft hide; only included rows reach the published objective.
+- `note`: optional curator annotation for this node within the objective.
 - Primary key `(revision_id, guide_base_id)`, so a topic appears at most once per revision.
 
-### `learning_path_revision_edges`
+### `objective_revision_edges`
 
-The projected prerequisite edges among included nodes, computed once at publish time and stored so the published path never drifts when the global DAG later changes.
+The projected prerequisite edges among included nodes, computed once at publish time and stored so the published objective never drifts when the global DAG later changes.
 
-- `revision_id`: FK to `learning_path_revisions`.
+- `revision_id`: FK to `objective_revisions`.
 - `from_guide_base_id`: source endpoint (FK to `guide_bases`), an included node of this revision.
 - `to_guide_base_id`: target endpoint (FK to `guide_bases`), an included node of this revision.
 - Primary key `(revision_id, from_guide_base_id, to_guide_base_id)`.
 
-These edges are derived from the global `guide_edges` graph, never hand-authored: at publish, the global prerequisite graph is projected onto the included (`is_included = true`) node set, bridging skipped prerequisites (if `A → Trig → C` and Trig is skipped, the projection stores `A → C`). The projection is computed by `project_path_edges(revision_id)`. A draft computes it live on every read for the editor's hide-skipped view; only at publish is the result frozen into this table. (The editor's show-skipped view instead uses the raw prerequisite edges among the nodes, read straight from `guide_edges` and never stored.) They are a frozen *view* of the canonical graph, not a competing prerequisite authority (see [Learning paths as frozen projections](#learning-paths-as-frozen-projections) for why this does not violate the one-global-DAG rule).
+These edges are derived from the global `guide_edges` graph, never hand-authored: at publish, the global prerequisite graph is projected onto the included (`is_included = true`) node set, bridging skipped prerequisites (if `A → Trig → C` and Trig is skipped, the projection stores `A → C`). The projection is computed by `project_objective_edges(revision_id)`. A draft computes it live on every read for the editor's hide-skipped view; only at publish is the result frozen into this table. (The editor's show-skipped view instead uses the raw prerequisite edges among the nodes, read straight from `guide_edges` and never stored.) They are a frozen *view* of the canonical graph, not a competing prerequisite authority (see [Objectives as frozen projections](#objectives-as-frozen-projections) for why this does not violate the one-global-DAG rule).
 
 ### `votes`
 
@@ -592,29 +588,29 @@ target_seat_count = round_down_to_odd( min( policy_default(case_type), eligible_
 
 The same eligibility filter feeds the replacement flow: when a seat is `replaced`, the new panelist is drawn from this pool minus those already seated.
 
-### Learning paths as frozen projections
+### Objectives as frozen projections
 
-A published learning path revision stores its own `learning_path_revision_edges`, which can look like it duplicates or competes with the global `guide_edges` graph. It does neither, because the two answer different questions.
+A published objective revision stores its own `objective_revision_edges`, which can look like it duplicates or competes with the global `guide_edges` graph. It does neither, because the two answer different questions.
 
-`guide_edges` is the single source of truth for **"what are the prerequisites of a topic?"** Only it may be traversed for walkthrough generation, level computation, and reachability. `learning_path_revision_edges` answers **"how does this one curated curriculum present its topics?"** When a curator excludes Trig from `Algebra → Trig → Calculus`, the stored edge `Algebra → Calculus` is not a claim that Trig stopped being a prerequisite of Calculus; it is a claim that *this path* moves the learner from Algebra to Calculus directly. 
+`guide_edges` is the single source of truth for **"what are the prerequisites of a topic?"** Only it may be traversed for walkthrough generation, level computation, and reachability. `objective_revision_edges` answers **"how does this one curated curriculum present its topics?"** When a curator excludes Trig from `Algebra → Trig → Calculus`, the stored edge `Algebra → Calculus` is not a claim that Trig stopped being a prerequisite of Calculus; it is a claim that *this objective* moves the learner from Algebra to Calculus directly. 
 
 Two rules keep the invariant intact:
 
-- **Projection:** path edges are computed by projecting the global DAG onto the included node set at publish time; curators cannot draw arbitrary edges (e.g. an invented `Algebra → ML`). Every stored edge therefore originates from `guide_edges`.
-- **Frozen, never authoritative:** once stored, path edges are read only to render that revision. Nothing treats them as prerequisite authority, so they cannot drift the meaning of the global graph.
+- **Projection:** objective edges are computed by projecting the global DAG onto the included node set at publish time; curators cannot draw arbitrary edges (e.g. an invented `Algebra → ML`). Every stored edge therefore originates from `guide_edges`.
+- **Frozen, never authoritative:** once stored, objective edges are read only to render that revision. Nothing treats them as prerequisite authority, so they cannot drift the meaning of the global graph.
 
-Storing the projection (rather than recomputing it from the live DAG on each read) allows learning paths to not automatically change whenever an edge in the global DAG is added/altered, which could potentially lead to unwanted changes in the curated learning path.
+Storing the projection (rather than recomputing it from the live DAG on each read) allows objectives to not automatically change whenever an edge in the global DAG is added/altered, which could potentially lead to unwanted changes in the curated objective.
 
-### Learning path draft reconciliation
+### Objective draft reconciliation
 
 Only a **draft** revision tracks the live DAG; a published revision is frozen and is never affected by any of the below. While a draft is open, the global `guide_edges` graph can change underneath it. The governing rule is that the system computes the delta and surfaces it, but only the curator changes a topic's *included* membership. The node table keeps a row for every closure topic with an `is_included` flag, so it cleanly distinguishes "curator skipped this" (`is_included = false`) from "never in the closure" (no row). The system may add new closure topics as skipped rows (never overwriting an existing row), but it never flips `is_included` on its own. Four cases:
 
 1. **New edge between two topics already in the draft:** nothing to reconcile. Draft edges are not stored (they freeze only at publish); the editor projects the live DAG onto the current node set on every render, so a new or removed edge between included topics is reflected automatically on the next redraw. No row changes.
-2. **A new prerequisite topic enters the targets' closure:** the closure top-up inserts the topic as a node with `is_included = false` (`insert ... on conflict (revision_id, guide_base_id) do nothing`, so it only fills gaps and never touches an existing row). It joins the path's candidate pool as a skipped topic; the published curriculum does not grow until the curator toggles it on (opt-in). The UI badges it as a new prerequisite (derived, see below) so a now-required topic does not hide unnoticed in the skipped pile. A previously skipped topic keeps its `is_included = false` and is never auto-resurrected.
+2. **A new prerequisite topic enters the targets' closure:** the closure top-up inserts the topic as a node with `is_included = false` (`insert ... on conflict (revision_id, guide_base_id) do nothing`, so it only fills gaps and never touches an existing row). It joins the objective's candidate pool as a skipped topic; the published curriculum does not grow until the curator toggles it on (opt-in). The UI badges it as a new prerequisite (derived, see below) so a now-required topic does not hide unnoticed in the skipped pile. A previously skipped topic keeps its `is_included = false` and is never auto-resurrected.
 3. **An edge is removed, so a kept topic is no longer required by the targets:** the topic stays in the draft (the curator may still want it); the system flags it ("Statistics is no longer required by your targets — keep or remove?") and the curator decides. No automatic change to `is_included`.
 4. **A referenced guide or guide base is archived or purged mid-draft.** The affected node is flagged as broken; the curator must swap the variant (`guide_id`) or skip the node. Publish-time validation rejects any included node pointing at an archived or purged guide, so a broken reference can never freeze into a published revision.
 
-**New-prerequisite badge.** "New this revision" is not stored; it is derived by anti-joining the draft's nodes against the revision the draft branched from (`learning_paths.current_revision_id`): a `guide_base_id` present in the draft but absent from the parent revision is new. Computed on read and returned alongside the nodes so the editor can badge it. (Rollback clones an *older* revision, for which `current_revision_id` is the wrong baseline; a stored `based_on_revision_id` would be needed to badge rollbacks accurately, deferred until needed.)
+**New-prerequisite badge.** "New this revision" is not stored; it is derived by anti-joining the draft's nodes against the revision the draft branched from (`objectives.current_revision_id`): a `guide_base_id` present in the draft but absent from the parent revision is new. Computed on read and returned alongside the nodes so the editor can badge it. (Rollback clones an *older* revision, for which `current_revision_id` is the wrong baseline; a stored `based_on_revision_id` would be needed to badge rollbacks accurately, deferred until needed.)
 
 ### Derived Data
 
@@ -632,9 +628,9 @@ Reachability is computed by checking whether every transitive prerequisite exist
 
 Most walkthroughs should be generated on demand by picking a target guide base and computing its transitive prerequisite DAG. Saved or user-curated walkthroughs are intentionally left for a later migration because their sharing, attribution, and dispute model is still open in `docs/open-questions.md`.
 
-#### Learning path levels
+#### Objective levels
 
-A learning path stores no per-node level. Ordering is derived at render time by topological layering over the revision's frozen `learning_path_revision_edges`: each node's level is its longest projected-prerequisite path from a level-1 node. Because the edges are already the projection onto included nodes, skipped prerequisites never leave gaps in the numbering (a node promoted by an exclusion simply lands one level above whatever still precedes it). This is the same longest-path layering used for walkthroughs, run over the stored projected edges instead of the live DAG.
+An objective stores no per-node level. Ordering is derived at render time by topological layering over the revision's frozen `objective_revision_edges`: each node's level is its longest projected-prerequisite path from a level-1 node. Because the edges are already the projection onto included nodes, skipped prerequisites never leave gaps in the numbering (a node promoted by an exclusion simply lands one level above whatever still precedes it). This is the same longest-path layering used for walkthroughs, run over the stored projected edges instead of the live DAG.
 
 ### Not Yet Implemented
 
@@ -684,13 +680,13 @@ Potential shape: a `role_applications` table.
 
 Approval inserts the matching `user_roles` row. A partial unique index on `(user_id, role) WHERE status = 'pending'` stops a user stacking duplicate open applications for the same role.
 
-#### Learning path review gate
+#### Objective review gate
 
-Learning paths currently have **no review gate**: a curator's submit publishes the revision directly (flip to `published`, project edges, point `current_revision_id` at it), with no `review_cases` involved. A future gate would reuse the shared review machinery exactly like guides: add `learning_path_publish` / `learning_path_edit` back to the `case_type` enum and a `learning_path_review_cases` satellite (PK/FK `case_id`, plus `learning_path_revision_id` pinning the exact snapshot under review), drawn from the **verifier** pool. Submit would then open a case instead of publishing, and a revision would "read as approved" from its case before going live.
+Objectives currently have **no review gate**: a curator's submit publishes the revision directly (flip to `published`, project edges, point `current_revision_id` at it), with no `review_cases` involved. A future gate would reuse the shared review machinery exactly like guides: add `objective_publish` / `objective_edit` back to the `case_type` enum and a `objective_review_cases` satellite (PK/FK `case_id`, plus `objective_revision_id` pinning the exact snapshot under review), drawn from the **verifier** pool. Submit would then open a case instead of publishing, and a revision would "read as approved" from its case before going live.
 
-#### Learning path post-publish governance
+#### Objective post-publish governance
 
-The first-pass learning path schema covers authoring and frozen publishing. Post-publish governance (learner **votes** on a path, vote-triggered **re-review**, **disputes** against a path, and **content holds** (hide/purge) over a path) is deliberately deferred. Paths reference guides that already carry their own votes, holds, and disputes, so a bad guide is still governed at the guide level; what is missing is governance of the *curation* itself (e.g. a path that skips a load-bearing prerequisite or pushes a fringe variant). When added, it should reuse the same machinery rather than grow a parallel one: a `re_review`/`dispute` case type targeting a `learning_path_id`, and a `content_holds` scope column for paths.
+The first-pass objective schema covers authoring and frozen publishing. Post-publish governance (learner **votes** on an objective, vote-triggered **re-review**, **disputes** against an objective, and **content holds** (hide/purge) over an objective) is deliberately deferred. Objectives reference guides that already carry their own votes, holds, and disputes, so a bad guide is still governed at the guide level; what is missing is governance of the *curation* itself (e.g. an objective that skips a load-bearing prerequisite or pushes a fringe variant). When added, it should reuse the same machinery rather than grow a parallel one: a `re_review`/`dispute` case type targeting a `objective_id`, and a `content_holds` scope column for objectives.
 
 ---
 
@@ -804,29 +800,29 @@ A moderator destroys content while keeping the audit trail. See [Content removal
 6. **Node scope only** → scrub the node's own content — `guides.slug`, or `guide_bases.title` + `slug` — and set `status = 'archived'`. If a purged guide was canonical, re-point or leave `guide_bases.canonical_guide_id` per policy (it resolves to the tombstone).
 7. `content_holds` → set `purged_at` and `purged_by`. The revision carries `is_purged = true`; who/when stays on this hold row.
 
-### 11. Author and publish a learning path
+### 11. Author and publish an objective
 
-A curator builds a curated curriculum from one or more targets. Most of the work (DAG closure, projection) happens at authoring/publish time; opening the path later (flow 12) reads a frozen snapshot.
+A curator builds a curated curriculum from one or more targets. Most of the work (DAG closure, projection) happens at authoring/publish time; opening the objective later (flow 12) reads a frozen snapshot.
 
-1. `learning_paths` → insert the shell: `slug = NULL` (addressed by id until first publish), `status = 'draft'`, `current_revision_id = NULL`, `created_by`.
-2. `learning_path_revisions` → insert the first revision: `learning_path_id`, `title`, `summary`, `change_summary`, `author_id`, `status = 'draft'`.
+1. `objectives` → insert the shell: `slug = NULL` (addressed by id until first publish), `status = 'draft'`, `current_revision_id = NULL`, `created_by`.
+2. `objective_revisions` → insert the first revision: `objective_id`, `title`, `summary`, `change_summary`, `author_id`, `status = 'draft'`.
 3. **Pick targets:** the curator chooses one or more goal topics (and a variant for each). These are held in the editor until seeding; a target becomes a node flagged `is_target` in the next step.
-4. **Seed the curriculum:** the system computes the transitive prerequisite DAG closure of the chosen targets over `guide_edges`, picks a default variant per topic, and immediately materializes the whole closure: `learning_path_revision_nodes` → insert one row per closure topic (`revision_id`, `guide_base_id`, `guide_id`), setting `is_target = true` (with the curator's chosen variant) on the target topics and `false` on the rest, and `is_included = true` on all of them. The draft starts as "everything included," and the curator narrows from there. Seeding into the real table (rather than holding the set in memory until submit) keeps a node row's meaning identical in every state. Every closure topic has a row; `is_included` says whether it reaches the published curriculum, so a `draft` revision and a `published` one read the same way and submit needs no convert-set-into-rows step. The draft persists server-side, so the curator can leave and resume.
+4. **Seed the curriculum:** the system computes the transitive prerequisite DAG closure of the chosen targets over `guide_edges`, picks a default variant per topic, and immediately materializes the whole closure: `objective_revision_nodes` → insert one row per closure topic (`revision_id`, `guide_base_id`, `guide_id`), setting `is_target = true` (with the curator's chosen variant) on the target topics and `false` on the rest, and `is_included = true` on all of them. The draft starts as "everything included," and the curator narrows from there. Seeding into the real table (rather than holding the set in memory until submit) keeps a node row's meaning identical in every state. Every closure topic has a row; `is_included` says whether it reaches the published curriculum, so a `draft` revision and a `published` one read the same way and submit needs no convert-set-into-rows step. The draft persists server-side, so the curator can leave and resume.
 5. **Curator edits the draft in place:** skip a topic → `PATCH` that node's `is_included = false` (a soft hide; the row stays as a re-includable candidate). Re-include → `is_included = true`. Swap a variant → update that row's `guide_id`. Annotate → set `note`. Toggle a goal → `is_target`. Edit metadata → update the revision's `title`/`summary`. Drafts are mutable up to submission (same as guide draft revisions). Whatever rows carry `is_included = true` at submit *are* the published set.
 6. **Submit (direct publish), one transaction** (no review gate for now):
-  - `learning_path_revisions` → `status = 'published'`, `published_at = now()`.
-  - **Freeze the projection.** Project the current `guide_edges` graph onto the revision's included (`is_included = true`) node set, bridging skipped topics, and `learning_path_revision_edges` → insert one row per projected edge: `revision_id`, `from_guide_base_id`, `to_guide_base_id`. This is the only time these rows are written; the revision is now immutable.
-  - `learning_paths` → set `current_revision_id` = this revision, `status = 'published'`, and on revision 1 `slug = slugify(revision.title)` (frozen from here).
+  - `objective_revisions` → `status = 'published'`, `published_at = now()`.
+  - **Freeze the projection.** Project the current `guide_edges` graph onto the revision's included (`is_included = true`) node set, bridging skipped topics, and `objective_revision_edges` → insert one row per projected edge: `revision_id`, `from_guide_base_id`, `to_guide_base_id`. This is the only time these rows are written; the revision is now immutable.
+  - `objectives` → set `current_revision_id` = this revision, `status = 'published'`, and on revision 1 `slug = slugify(revision.title)` (frozen from here).
 
-A later edit is the same flow starting at step 2, except the new draft is **cloned** from the live revision rather than seeded from scratch: copy the current revision's node rows (`guide_id`, `is_target`, `is_included`, `note`) under the new `revision_id`, preserving every prior choice. The system then **tops up** the clone against the current closure — `insert ... on conflict (revision_id, guide_base_id) do nothing` adds any topic that newly entered the closure as a skipped (`is_included = false`) candidate, never overwriting a cloned row (see [Learning path draft reconciliation](#learning-path-draft-reconciliation)). The curator reconciles, then submits; `current_revision_id` repoints and the slug is untouched. **Rollback** is a soft rollback: create a new revision cloning an older revision's targets/nodes, then submit to repoint `current_revision_id`. (A pre-publish gate is [deferred](#learning-path-review-gate); if added, submit would open a verifier case instead of publishing outright.)
+A later edit is the same flow starting at step 2, except the new draft is **cloned** from the live revision rather than seeded from scratch: copy the current revision's node rows (`guide_id`, `is_target`, `is_included`, `note`) under the new `revision_id`, preserving every prior choice. The system then **tops up** the clone against the current closure — `insert ... on conflict (revision_id, guide_base_id) do nothing` adds any topic that newly entered the closure as a skipped (`is_included = false`) candidate, never overwriting a cloned row (see [Objective draft reconciliation](#objective-draft-reconciliation)). The curator reconciles, then submits; `current_revision_id` repoints and the slug is untouched. **Rollback** is a soft rollback: create a new revision cloning an older revision's targets/nodes, then submit to repoint `current_revision_id`. (A pre-publish gate is [deferred](#objective-review-gate); if added, submit would open a verifier case instead of publishing outright.)
 
-### 12. Open a learning path
+### 12. Open an objective
 
-A learner visits `/paths/{slug}`. No DAG traversal happens; the response is read straight from the frozen snapshot.
+A learner visits `/objectives/{slug}`. No DAG traversal happens; the response is read straight from the frozen snapshot.
 
-1. `learning_paths` → resolve `slug` to the row; read `current_revision_id`.
-2. `learning_path_revisions` → load the live revision's metadata (`title`, `summary`).
-3. `learning_path_revision_nodes` → load the included nodes (`is_included = true`; skipped rows never reach the public view); join `guides` → `guides.current_revision_id` → `guide_revisions` for each node's live title/summary (the variant is frozen, its content is current).
-4. `learning_path_revision_edges` → load the frozen projected edges for the revision.
-5. **Derive levels in the app** by topological layering over the loaded edges (not stored; see [Learning path levels](#learning-path-levels)), and return `{ nodes, edges }` for the graph UI to render. The `is_target` nodes drive the "this path helps you reach …" display.
+1. `objectives` → resolve `slug` to the row; read `current_revision_id`.
+2. `objective_revisions` → load the live revision's metadata (`title`, `summary`).
+3. `objective_revision_nodes` → load the included nodes (`is_included = true`; skipped rows never reach the public view); join `guides` → `guides.current_revision_id` → `guide_revisions` for each node's live title/summary (the variant is frozen, its content is current).
+4. `objective_revision_edges` → load the frozen projected edges for the revision.
+5. **Derive levels in the app** by topological layering over the loaded edges (not stored; see [Objective levels](#objective-levels)), and return `{ nodes, edges }` for the graph UI to render. The `is_target` nodes drive the "this objective helps you reach …" display.
 
