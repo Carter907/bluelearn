@@ -12,11 +12,16 @@
         multipart/form-data:
           schema:
             type: object
+            additionalProperties: false
             properties:
               file:
                 type: string
                 format: binary
-            required: [file]
+              revision_id:
+                type: string
+                format: uuid
+                description: The draft revision the asset is linked to.
+            required: [file, revision_id]
     responses:
       "201":
         description: The stored asset
@@ -28,3 +33,5 @@
         $ref: "../components/responses/_shared.yaml#/BadRequest"
       "401":
         $ref: "../components/responses/_shared.yaml#/Unauthorized"
+      "404":
+        $ref: "../components/responses/_shared.yaml#/NotFound"
