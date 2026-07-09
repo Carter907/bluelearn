@@ -16,6 +16,7 @@ import {
   listPublishedLearningPaths,
 } from "../services/learning-path.service";
 import {
+  diffPathRevisions,
   getLearningPathRevision,
   publishLearningPathRevision,
   rollbackLearningPathRevision,
@@ -153,5 +154,12 @@ export const learningPathRevisionsRouter = new Hono<HonoEnv>()
     }
   )
 
-  // Rendered diff between two revision snapshots
-  .get("/:id/diff/:otherId", (c) => c.json({ error: "Not implemented" }, 501));
+  // Returns the diff between two revision snapshots as { from, to, fields, nodes, edges }.
+  .get("/:id/diff/:otherId", async (c) => {
+    const { from, to, fields, nodes, edges } = await diffPathRevisions(
+      c.get("supabase"),
+      c.req.param("id"),
+      c.req.param("otherId")
+    );
+    return c.json({ from, to, fields, nodes, edges });
+  });

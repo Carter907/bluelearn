@@ -29,6 +29,7 @@ import {
   rollbackVariant,
 } from "../services/variant.service";
 import {
+  diffRevisions,
   getRevision,
   submitRevision,
   updateRevision,
@@ -223,5 +224,12 @@ export const guideRevisionsRouter = new Hono<HonoEnv>()
     return c.json({ review_case_id }, 201);
   })
 
-  // Returns the diff between two revisions.
-  .get("/:id/diff/:otherId", (c) => c.json({ error: "Not implemented" }, 501));
+  // Returns the diff between two revisions as { from, to, fields }.
+  .get("/:id/diff/:otherId", async (c) => {
+    const { from, to, fields } = await diffRevisions(
+      c.get("supabase"),
+      c.req.param("id"),
+      c.req.param("otherId")
+    );
+    return c.json({ from, to, fields });
+  });

@@ -32,7 +32,7 @@ properties:
       changed:
         type: array
         items:
-          $ref: "./PathNode.yaml"
+          $ref: "./NodeChange.yaml"
     required: [added, removed, changed]
   edges:
     type: object
