@@ -1,9 +1,9 @@
 import { Link } from "@tanstack/react-router";
 import type { Subject } from "@/types/subjects";
 
-import { Card, CardFooter, CardHeader } from "@/components/ui/card";
+import { Card, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { FooterStats } from "@/components/cards/FooterStats";
+import { Footer } from "@/components/cards/Footer";
 
 import { Route as SubjectRoute } from "@/routes/subjects.$slug";
 
@@ -48,13 +48,9 @@ export const SubjectCard = ({ subject }: PropTypes) => {
 
       {/* Footer */}
       {(subject.stats || subject.actionBtns) && (
-        <CardFooter className="grid grid-cols-2 border-t p-0 lg:grid-cols-4">
-          {subject.stats?.map((s: { label: string; data: number }) => {
-            return <FooterStats label={s.label} data={s.data} />;
-          })}
-
-          {subject.actionBtns}
-        </CardFooter>
+        <Footer
+          data={{ stats: subject.stats, actionBtns: subject.actionBtns }}
+        />
       )}
     </Card>
   );

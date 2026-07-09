@@ -2,14 +2,9 @@ import { Link } from "@tanstack/react-router";
 
 import type { Guide } from "@/types/guides";
 
-import {
-  Card,
-  CardContent,
-  CardFooter,
-  CardHeader,
-} from "@/components/ui/card";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { FooterStats } from "@/components/cards/FooterStats";
+import { Footer } from "@/components/cards/Footer";
 
 import { Route as GuideRoute } from "@/routes/guides.$slug";
 
@@ -77,13 +72,7 @@ export const GuideCard = ({ guide }: PropTypes) => {
 
       {/* Footer */}
       {(guide.stats || guide.actionBtns) && (
-        <CardFooter className="grid grid-cols-2 border-t p-0 lg:grid-cols-4">
-          {guide.stats?.map((g: { label: string; data: number }) => {
-            return <FooterStats label={g.label} data={g.data} />;
-          })}
-
-          {guide.actionBtns}
-        </CardFooter>
+        <Footer data={{ stats: guide.stats, actionBtns: guide.actionBtns }} />
       )}
     </Card>
   );

@@ -3,14 +3,9 @@ import { ArrowRight } from "lucide-react";
 
 import type { HydratedObjective } from "@/types/objectives";
 
-import {
-  Card,
-  CardContent,
-  CardFooter,
-  CardHeader,
-} from "@/components/ui/card";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { FooterStats } from "@/components/cards/FooterStats";
+import { Footer } from "@/components/cards/Footer";
 
 import { Route as LearningObjectiveRoute } from "@/routes/objectives.$slug";
 
@@ -97,13 +92,9 @@ export const ObjectiveCard = ({ objective }: PropTypes) => {
 
       {/* Footer */}
       {(objective.stats || objective.actionBtns) && (
-        <CardFooter className="grid grid-cols-2 border-t p-0 lg:grid-cols-4">
-          {objective.stats?.map((g: { label: string; data: number }) => {
-            return <FooterStats label={g.label} data={g.data} />;
-          })}
-
-          {objective.actionBtns}
-        </CardFooter>
+        <Footer
+          data={{ stats: objective.stats, actionBtns: objective.actionBtns }}
+        />
       )}
     </Card>
   );
