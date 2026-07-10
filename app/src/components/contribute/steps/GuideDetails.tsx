@@ -1,4 +1,7 @@
-import { ComboboxMulti } from "@/components/ComboboxMulti";
+import { useState } from "react";
+import type { Dispatch, SetStateAction } from "react";
+import type { GuideContribution } from "@/types/contributions";
+
 import { StepperActionHeader } from "@/components/contribute/StepperActionHeader";
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
@@ -6,12 +9,21 @@ import { Input } from "@/components/ui/input";
 import subjectsData from "@/data/subjects.json";
 import guidesData from "@/data/guides.json";
 import { Button } from "@/components/ui/button";
+import { Combobox } from "@/components/ui/combobox";
 
 type PropTypes = {
   Stepper: any;
+  guideContData: GuideContribution;
+  setGuideContData: Dispatch<SetStateAction<GuideContribution>>;
 };
 
-export const GuideDetails = ({ Stepper }: PropTypes) => {
+export const GuideDetails = ({
+  Stepper,
+  guideContData,
+  setGuideContData,
+}: PropTypes) => {
+  const [todoPrereq, setTodoPrereq] = useState<string>("");
+
   return (
     <Stepper.Content step="guide-details">
       <StepperActionHeader title={"Guide Details"} Stepper={Stepper} />
@@ -30,6 +42,13 @@ export const GuideDetails = ({ Stepper }: PropTypes) => {
             placeholder="Choose a title. (Maximum 50 characters)."
             className="h-10 rounded-md"
             required
+            value={guideContData.title}
+            onChange={(e) =>
+              setGuideContData((prev) => ({
+                ...prev,
+                title: e.target.value,
+              }))
+            }
           />
         </Field>
 
@@ -43,6 +62,13 @@ export const GuideDetails = ({ Stepper }: PropTypes) => {
             rows={4}
             placeholder="Write a summary for your guide."
             required
+            value={guideContData.summary}
+            onChange={(e) =>
+              setGuideContData((prev) => ({
+                ...prev,
+                summary: e.target.value,
+              }))
+            }
           />
         </Field>
 
@@ -51,8 +77,8 @@ export const GuideDetails = ({ Stepper }: PropTypes) => {
             Subjects
           </FieldLabel>
 
-          <ComboboxMulti
-            id="subject-tags"
+          <Combobox
+            multiple
             items={subjectsData.map((s) => {
               return {
                 value: s.slug,
@@ -60,6 +86,13 @@ export const GuideDetails = ({ Stepper }: PropTypes) => {
                 description: s.summary,
               };
             })}
+            value={guideContData.subjects}
+            onValueChange={(subjects) =>
+              setGuideContData((prev) => ({
+                ...prev,
+                subjects,
+              }))
+            }
           />
         </Field>
 
@@ -68,8 +101,8 @@ export const GuideDetails = ({ Stepper }: PropTypes) => {
             Prerequsite Guides
           </FieldLabel>
 
-          <ComboboxMulti
-            id="prereqs"
+          <Combobox
+            multiple
             items={guidesData.map((g) => {
               return {
                 value: g.slug,
@@ -77,6 +110,13 @@ export const GuideDetails = ({ Stepper }: PropTypes) => {
                 description: g.summary,
               };
             })}
+            value={guideContData.prereqs}
+            onValueChange={(prereqs) =>
+              setGuideContData((prev) => ({
+                ...prev,
+                prereqs,
+              }))
+            }
           />
         </Field>
 
@@ -90,18 +130,36 @@ export const GuideDetails = ({ Stepper }: PropTypes) => {
               id="todo-prereqs"
               type="text"
               maxLength={50}
-              placeholder="Enter title of missing guide. (Maximum 50 characters)."
+              placeholder="Enter title of missing prerequsite guide."
               className="h-10 rounded-md"
+              value={todoPrereq}
+              onChange={(e) => setTodoPrereq(e.target.value)}
             />
             <Button
               variant="ghost"
               size="icon"
               className="btn-sec h-10 w-24 rounded-md"
+              onClick={() => {
+                if (todoPrereq !== "") {
+                  const todos = [...guideContData.todoPrereqs, todoPrereq];
+                  setGuideContData((prev) => ({
+                    ...prev,
+                    todoPrereqs: todos,
+                  }));
+
+                  setTodoPrereq("");
+                }
+              }}
             >
               Add Guide
             </Button>
           </div>
         </Field>
+        <ul className="list-disc px-8 text-sm">
+          {guideContData.todoPrereqs.map((todo, index) => {
+            return <li key={index}>{todo}</li>;
+          })}
+        </ul>
       </FieldGroup>
     </Stepper.Content>
   );

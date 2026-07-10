@@ -2,10 +2,12 @@ import { defineStepper } from "@stepperize/react";
 import { useMemo, useState } from "react";
 
 import type { Dispatch, SetStateAction } from "react";
-import type { ContributionType } from "@/types/contributions";
+import type {
+  ContributionType,
+  GuideContribution,
+} from "@/types/contributions";
 
 import { SelectType } from "@/components/contribute/steps/SelectType";
-import { SubjectDetails } from "@/components/contribute/steps/SubjectDetails";
 import { GuideDetails } from "@/components/contribute/steps/GuideDetails";
 import { VariantDetails } from "@/components/contribute/steps/VariantDetails";
 import { Content } from "@/components/contribute/steps/Content";
@@ -17,20 +19,16 @@ import { OrderObjectiveGuides } from "@/components/contribute/steps/OrderObjecti
 
 import { flows, typeStep } from "@/lib/contributionFlow";
 
-type GuideContribution = {
-  type: string;
-  title: string;
-  summary: string;
-  subjects: Array<string>;
-  prereqs: Array<string>;
-  todoPrereqs: Array<string>;
-};
-
 export default function ContributionFlow() {
   const [type, setType] = useState<ContributionType | null>(null);
-  const [guideContData, setGuideContData] = useState<GuideContribution | null>(
-    null
-  );
+  const [guideContData, setGuideContData] = useState<GuideContribution>({
+    type: "",
+    title: "",
+    summary: "",
+    subjects: [],
+    prereqs: [],
+    todoPrereqs: [],
+  });
 
   const StepperInstance = useMemo(() => {
     if (!type) {
@@ -70,8 +68,8 @@ function Inner({
   setType: (t: ContributionType) => void;
   useStepper: any;
   Stepper: any;
-  guideContData: GuideContribution | null;
-  setGuideContData: Dispatch<SetStateAction<GuideContribution | null>>;
+  guideContData: GuideContribution;
+  setGuideContData: Dispatch<SetStateAction<GuideContribution>>;
 }) {
   const stepper = useStepper();
 
@@ -82,9 +80,6 @@ function Inner({
       let nextStep = "objective-details";
 
       switch (value) {
-        case "subject":
-          nextStep = "subject-details";
-          break;
         case "guide":
           nextStep = "guide-details";
           break;
@@ -124,8 +119,11 @@ function Inner({
       <div className="flex min-w-0 flex-1 flex-col">
         <SelectType pickType={pickType} type={type} Stepper={Stepper} />
 
-        <SubjectDetails Stepper={Stepper} />
-        <GuideDetails Stepper={Stepper} />
+        <GuideDetails
+          Stepper={Stepper}
+          guideContData={guideContData}
+          setGuideContData={setGuideContData}
+        />
         <VariantDetails Stepper={Stepper} />
         <ObjectiveDetails Stepper={Stepper} />
 
