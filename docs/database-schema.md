@@ -478,8 +478,6 @@ Each level still keeps its own `status` because it answers a question only that 
 - `guides.status` — is **this method/alternative** live, while its base and siblings stay published? You can archive one guide without touching the base.
 - `guide_revisions.status` — is **this specific draft** still being written or already handed to review? This is per-revision and has no meaning at the node level.
 
-
-
 ### Content removal
 
 An `action` field picks the path in the `content_holds` table: `hidden` (reversible) or `purge` (irreversible). Content only lives on `guide_revisions`, so every actual content destruction lands there (`guides` and `guide_bases` hold no `body` to destroy).
@@ -806,7 +804,7 @@ When authoring a guide base, the author wires it into the graph.
 
 1. `subjects` → row exists (or insert if new, governance-gated).
 2. `guide_subjects` → insert `(guide_base_id, subject_id)` per tag. One base can be tagged into several subjects; the composite PK blocks duplicate tags. Subject views and floors then filter the global graph through these rows.
-3. `objective_subjects` → insert `(objective_id, subject_id)` per tag to surface an objective under a subject. Same composite-PK dedupe; tagging is owner-only and untagging moderator/admin-only.
+3. `objective_subjects` → insert `(objective_id, subject_id)` per tag to surface an objective under a subject. Same composite-PK dedupe; any curator can tag and untag, and moderators/admins can untag.
 
 
 
