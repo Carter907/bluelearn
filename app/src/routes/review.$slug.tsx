@@ -1,13 +1,13 @@
 import { useMemo, useState } from "react";
 import { Link, createFileRoute, notFound } from "@tanstack/react-router";
 
-import type { GuideReference, HydratedGuide } from "@/types/guides";
+import type { GuideReference, HydratedReviewGuide } from "@/types/guides";
 
 import { Separator } from "@/components/ui/separator";
 import { CollapsibleSection } from "@/components/CollapsibleSection";
 
 import { extractHeadings } from "@/lib/guideUtils";
-import { getGuideBySlug, hydrateGuide } from "@/lib/getData";
+import { getGuideBySlug, hydrateReviewGuide } from "@/lib/getData";
 
 import guides from "@/data/guides.json";
 import subjects from "@/data/subjects.json";
@@ -17,6 +17,7 @@ import { Sidebar } from "@/components/Sidebar";
 import { GuideReader } from "@/components/GuideReader";
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Combobox } from "@/components/ui/combobox";
+import { Badge } from "@/components/ui/badge";
 
 export type Review = {
   decision: string;
@@ -54,7 +55,11 @@ function RouteComponent() {
     throw notFound();
   }
 
-  const hydratedGuide: HydratedGuide = hydrateGuide(guide, guides, subjects);
+  const hydratedGuide: HydratedReviewGuide = hydrateReviewGuide(
+    guide,
+    guides,
+    subjects
+  );
 
   const headings = useMemo(
     () => extractHeadings(guide.content),
@@ -180,7 +185,7 @@ function RouteComponent() {
 
           {/* Header */}
 
-          <GuideReader guide={hydratedGuide} />
+          <GuideReader guide={hydratedGuide} guideType={hydratedGuide.type} />
         </main>
       </section>
     </div>
