@@ -24,6 +24,7 @@ import {
   FieldLabel,
 } from "@/components/ui/field";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import guidesData from "@/data/guides.json";
 
 // Map for O(1) guide lookup
@@ -333,7 +334,7 @@ export const OrderObjectiveGuides = ({
                 <div className="flex items-center gap-2 text-primary">
                   <ListOrdered className="h-5 w-5 text-primary" />
                   <CardTitle className="text-base font-semibold">
-                    Create Curated Sequence
+                    Create a Curated Sequence
                   </CardTitle>
                 </div>
                 <div className="flex items-center gap-1.5 pr-1 select-none">
@@ -345,7 +346,7 @@ export const OrderObjectiveGuides = ({
                     }`}
                   />
                   <span className="font-mono text-[10px] font-bold tracking-wider text-muted-foreground uppercase">
-                    {isCustomSequence ? "Custom" : "Aligned"}
+                    {isCustomSequence ? "Custom" : "Level-Ordered"}
                   </span>
                 </div>
               </div>
@@ -489,6 +490,13 @@ export const OrderObjectiveGuides = ({
                                 : "cursor-pointer border-border bg-background hover:bg-muted/30"
                           }`}
                         >
+                          <div className="pt-0.5">
+                            <Checkbox
+                              checked={isChecked}
+                              disabled={isTarget}
+                              className="pointer-events-none"
+                            />
+                          </div>
                           <div className="min-w-0 flex-1">
                             <h4 className="flex items-center gap-2 text-sm font-medium text-foreground">
                               {node.title}
