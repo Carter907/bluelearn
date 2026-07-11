@@ -30,7 +30,7 @@ export const GuideDetails = ({
 
       <FieldGroup>
         <Field className="space-y-2">
-          <FieldLabel className="font-mono text-[11px] tracking-[0.08em] uppercase">
+          <FieldLabel className="font-mono tracking-[0.08em] uppercase">
             Title
           </FieldLabel>
 
@@ -53,7 +53,7 @@ export const GuideDetails = ({
         </Field>
 
         <Field className="space-y-2">
-          <FieldLabel className="font-mono text-[11px] tracking-[0.08em] uppercase">
+          <FieldLabel className="font-mono tracking-[0.08em] uppercase">
             Summary
           </FieldLabel>
 
@@ -73,7 +73,7 @@ export const GuideDetails = ({
         </Field>
 
         <Field className="space-y-2">
-          <FieldLabel className="font-mono text-[11px] tracking-[0.08em] uppercase">
+          <FieldLabel className="font-mono tracking-[0.08em] uppercase">
             Subjects
           </FieldLabel>
 
@@ -97,7 +97,7 @@ export const GuideDetails = ({
         </Field>
 
         <Field className="space-y-2">
-          <FieldLabel className="font-mono text-[11px] tracking-[0.08em] uppercase">
+          <FieldLabel className="font-mono tracking-[0.08em] uppercase">
             Prerequsite Guides
           </FieldLabel>
 
@@ -121,7 +121,7 @@ export const GuideDetails = ({
         </Field>
 
         <Field className="space-y-2">
-          <FieldLabel className="font-mono text-[11px] tracking-[0.08em] uppercase">
+          <FieldLabel className="font-mono tracking-[0.08em] uppercase">
             Todo Prerequsite Guides
           </FieldLabel>
 
@@ -155,7 +155,7 @@ export const GuideDetails = ({
             </Button>
           </div>
         </Field>
-        <ul className="list-disc px-8 text-sm">
+        <ul className="list-disc px-8 text-[11px] text-muted-foreground">
           {guideContData.todoPrereqs.map((todo, index) => {
             return <li key={index}>{todo}</li>;
           })}
