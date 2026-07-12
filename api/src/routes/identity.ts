@@ -20,7 +20,7 @@ export const meRouter = new Hono<HonoEnv>()
     return c.json({ profile, roles });
   })
 
-  // Lists the caller's own draft revisions (guides + paths), newest first, for
+  // Lists the caller's own draft revisions (guides + objectives), newest first, for
   // a "continue editing" view. Drafts are absent from public listings, so this
   // is the way back in. Keyed on revision id since an unpublished shell has no slug.
   .get("/drafts", requireUser, async (c) => {

@@ -12,8 +12,8 @@ paths/                    # one file per resource; each holds that resource's pa
   guides.yaml             # /guides
   variants.yaml           # /variants
   guide-revisions.yaml    # /guide-revisions
-  learning-paths.yaml     # /paths
-  learning-path-revisions.yaml  # /path-revisions
+  objectives.yaml     # /objectives
+  objective-revisions.yaml  # /objective-revisions
   graph.yaml              # /prerequisites, /todos
   subjects.yaml           # /subjects
   reviews.yaml            # /reviews
@@ -22,7 +22,7 @@ components/
   schemas/                # models, grouped into a subfolder per domain (mirrors paths/)
     common/               # primitives + cross-domain enums (Uuid, Error, NodeStatus, ...)
     identity/  guides/  variants/  guide-revisions/
-    learning-paths/  learning-path-revisions/
+    objectives/  objective-revisions/
     subjects/  reviews/  media/
   responses/_shared.yaml  # reusable error responses
 ```

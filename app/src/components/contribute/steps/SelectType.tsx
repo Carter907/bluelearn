@@ -19,17 +19,6 @@ export const SelectType = ({ pickType, type, Stepper }: PropTypes) => {
           className="mono-micro rounded-full border border-badge-border p-4 tracking-[0.08em] text-badge-foreground"
           style={{
             backgroundColor:
-              type == "subject" ? "var(--badge-bg)" : "var(--muted-bg)",
-          }}
-          onClick={() => pickType("subject")}
-        >
-          Subject
-        </button>
-
-        <button
-          className="mono-micro rounded-full border border-badge-border p-4 tracking-[0.08em] text-badge-foreground"
-          style={{
-            backgroundColor:
               type == "guide" ? "var(--badge-bg)" : "var(--muted-bg)",
           }}
           onClick={() => pickType("guide")}

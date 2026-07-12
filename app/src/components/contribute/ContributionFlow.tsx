@@ -1,12 +1,13 @@
 import { defineStepper } from "@stepperize/react";
 import { useMemo, useState } from "react";
 
-import type { ContributionType } from "@/types/contributions";
-
-import { flows, typeStep } from "@/lib/contributionFlow";
+import type { Dispatch, SetStateAction } from "react";
+import type {
+  ContributionType,
+  GuideContribution,
+} from "@/types/contributions";
 
 import { SelectType } from "@/components/contribute/steps/SelectType";
-import { SubjectDetails } from "@/components/contribute/steps/SubjectDetails";
 import { GuideDetails } from "@/components/contribute/steps/GuideDetails";
 import { VariantDetails } from "@/components/contribute/steps/VariantDetails";
 import { Content } from "@/components/contribute/steps/Content";
@@ -16,8 +17,19 @@ import { Submit } from "@/components/contribute/steps/Submit";
 import { SelectObjectiveGuides } from "@/components/contribute/steps/SelectObjectiveGuides";
 import { OrderObjectiveGuides } from "@/components/contribute/steps/OrderObjectiveGuides";
 
+import { flows, typeStep } from "@/lib/contributionFlow";
+
 export default function ContributionFlow() {
   const [type, setType] = useState<ContributionType | null>(null);
+  const [guideContData, setGuideContData] = useState<GuideContribution>({
+    type: "",
+    title: "",
+    summary: "",
+    subjects: [],
+    newSubjects: [],
+    prereqs: [],
+    todoPrereqs: [],
+  });
 
   const StepperInstance = useMemo(() => {
     if (!type) {
@@ -37,6 +49,8 @@ export default function ContributionFlow() {
           setType={setType}
           useStepper={useStepper}
           Stepper={Stepper}
+          guideContData={guideContData}
+          setGuideContData={setGuideContData}
         />
       )}
     </Stepper.Root>
@@ -48,11 +62,15 @@ function Inner({
   setType,
   useStepper,
   Stepper,
+  guideContData,
+  setGuideContData,
 }: {
   type: ContributionType | null;
   setType: (t: ContributionType) => void;
   useStepper: any;
   Stepper: any;
+  guideContData: GuideContribution;
+  setGuideContData: Dispatch<SetStateAction<GuideContribution>>;
 }) {
   const stepper = useStepper();
 
@@ -63,9 +81,6 @@ function Inner({
       let nextStep = "objective-details";
 
       switch (value) {
-        case "subject":
-          nextStep = "subject-details";
-          break;
         case "guide":
           nextStep = "guide-details";
           break;
@@ -79,7 +94,7 @@ function Inner({
   };
 
   return (
-    <div className="flex w-full gap-8">
+    <div className="flex min-h-[calc(100vh_-_210px)] w-full gap-8">
       {/* sidebar */}
       <div className="w-64 border-r pr-4">
         <Stepper.List>
@@ -105,8 +120,11 @@ function Inner({
       <div className="flex min-w-0 flex-1 flex-col">
         <SelectType pickType={pickType} type={type} Stepper={Stepper} />
 
-        <SubjectDetails Stepper={Stepper} />
-        <GuideDetails Stepper={Stepper} />
+        <GuideDetails
+          Stepper={Stepper}
+          guideContData={guideContData}
+          setGuideContData={setGuideContData}
+        />
         <VariantDetails Stepper={Stepper} />
         <ObjectiveDetails Stepper={Stepper} />
 

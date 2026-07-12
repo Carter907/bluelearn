@@ -3,11 +3,6 @@ export const typeStep = [{ id: "type", title: "Contribution Type" }] as const;
 
 // flow definitions
 export const flows = {
-  subject: [
-    { id: "subject-details", title: "Subject Details" },
-    { id: "submit", title: "Submit" },
-  ],
-
   guide: [
     { id: "guide-details", title: "Guide Details" },
     { id: "content", title: "Content" },

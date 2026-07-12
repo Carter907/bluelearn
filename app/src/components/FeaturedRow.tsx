@@ -3,6 +3,8 @@ import type { HydratedObjective } from "@/types/objectives";
 import { Separator } from "@/components/ui/separator";
 import { ObjectiveCard } from "@/components/cards/ObjectiveCard";
 
+import { Route as ObjectiveRoute } from "@/routes/objectives.$slug";
+
 type PropTypes = {
   objectives: Array<HydratedObjective>;
   type: string;
@@ -34,7 +36,12 @@ export const FeaturedRow = ({ objectives, type }: PropTypes) => {
           };
           return (
             <div key={objective.slug} className="w-[550px] shrink-0">
-              <ObjectiveCard key={o.slug} objective={o} />;
+              <ObjectiveCard
+                key={o.slug}
+                objective={o}
+                to={ObjectiveRoute.to}
+              />
+              ;
             </div>
           );
         })}

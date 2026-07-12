@@ -1,8 +1,11 @@
 import { Hono } from "hono";
 import { cors } from "hono/cors";
+import { createClient } from "@supabase/supabase-js";
 import { supabaseMiddleware } from "./middleware/auth.middleware";
 import { ServiceError } from "./lib/service-error";
-import type { HonoEnv } from "./types";
+import { assemblePendingPanels } from "./services/review.service";
+import type { Database } from "./database.types";
+import type { Bindings, HonoEnv } from "./types";
 import { meRouter, profilesRouter } from "./routes/identity";
 import {
   guidesRouter,
@@ -10,9 +13,9 @@ import {
   guideRevisionsRouter,
 } from "./routes/guides";
 import {
-  learningPathsRouter,
-  learningPathRevisionsRouter,
-} from "./routes/learning-paths";
+  objectivesRouter,
+  objectiveRevisionsRouter,
+} from "./routes/objectives";
 import { prerequisitesRouter, todosRouter } from "./routes/graph";
 import { subjectsRouter } from "./routes/subjects";
 import { reviewsRouter } from "./routes/reviews";
@@ -28,8 +31,8 @@ const app = new Hono<HonoEnv>()
   .route("/guides", guidesRouter)
   .route("/variants", variantsRouter)
   .route("/guide-revisions", guideRevisionsRouter)
-  .route("/paths", learningPathsRouter)
-  .route("/path-revisions", learningPathRevisionsRouter)
+  .route("/objectives", objectivesRouter)
+  .route("/objective-revisions", objectiveRevisionsRouter)
   .route("/prerequisites", prerequisitesRouter)
   .route("/todos", todosRouter)
   .route("/subjects", subjectsRouter)
@@ -45,5 +48,17 @@ app.onError((err, c) => {
   return c.json({ error: "Internal server error" }, 500);
 });
 
-export default app;
+// Scheduled trigger (schedule in wrangler.jsonc).
+async function scheduled(_event: ScheduledController, env: Bindings) {
+  const supabase = createClient<Database>(
+    env.SUPABASE_URL,
+    env.SUPABASE_SECRET_KEY,
+    { auth: { persistSession: false, autoRefreshToken: false } }
+  );
+  await assemblePendingPanels(supabase);
+}
+
+// Default export doubles as the Workers handler and the cron entry: Hono serves
+// fetch and scheduled runs assembly. Tests import it to call app.request().
+export default Object.assign(app, { scheduled });
 export type AppType = typeof app;

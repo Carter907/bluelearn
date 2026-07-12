@@ -2,8 +2,8 @@ type: string
 enum:
   - guide_publish
   - guide_edit
-  - learning_path_publish
-  - learning_path_edit
+  - objective_publish
+  - objective_edit
   - dispute
   - appeal
   - re_review

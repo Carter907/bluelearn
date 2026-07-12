@@ -6,6 +6,9 @@ import { Separator } from "@/components/ui/separator";
 import { ObjectiveCard } from "@/components/cards/ObjectiveCard";
 import { GuideCard } from "@/components/cards/GuideCard";
 
+import { Route as ObjectiveRoute } from "@/routes/objectives.$slug";
+import { Route as GuideRoute } from "@/routes/guides.$slug";
+
 import { hydrateObjectives } from "@/lib/getData";
 
 import objectives from "@/data/objectives.json";
@@ -49,7 +52,13 @@ function SubjectPage() {
                 { label: "Guides", data: objective.levels.length },
               ],
             };
-            return <ObjectiveCard key={p.slug} objective={p} />;
+            return (
+              <ObjectiveCard
+                key={p.slug}
+                objective={p}
+                to={ObjectiveRoute.to}
+              />
+            );
           })}
         </div>
       </section>
@@ -81,7 +90,18 @@ function SubjectPage() {
                 </div>
               ),
             };
-            return <GuideCard key={g.slug} guide={g} />;
+            return (
+              <GuideCard
+                key={g.slug}
+                guide={g}
+                origin={{
+                  type: "subject",
+                  title: slug,
+                  path: `/subjects/${slug}`,
+                }}
+                to={GuideRoute.to}
+              />
+            );
           })}
         </div>
       </section>

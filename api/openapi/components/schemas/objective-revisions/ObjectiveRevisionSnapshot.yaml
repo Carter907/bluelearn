@@ -1,0 +1,13 @@
+type: object
+additionalProperties: false
+description: >
+  A revision's editorial metadata paired with its curriculum graph. The same
+  wrapper the public objective page uses ({ objective, snapshot }), keyed on the
+  revision instead of the objective so the editor sees the specific revision it
+  is editing.
+properties:
+  revision:
+    $ref: "./ObjectiveRevision.yaml"
+  snapshot:
+    $ref: "../objectives/ObjectiveSnapshot.yaml"
+required: [revision, snapshot]

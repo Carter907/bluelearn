@@ -14,11 +14,11 @@ type GuideDraft = {
   updated_at: string;
 };
 
-type PathDraft = {
+type ObjectiveDraft = {
   revision_id: string;
-  path_id: string;
+  objective_id: string;
   title: string;
-  path_slug: string | null;
+  objective_slug: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -60,13 +60,13 @@ export async function getMyIdentity(supabase: DB, userId: string) {
   return { profile, roles };
 }
 
-// The caller's own draft revisions. Guide drafts and path drafts are returned
+// The caller's own draft revisions. Guide drafts and objective drafts are returned
 // as separate lists, each ordered most-recently-edited first.
 export async function getMyDrafts(
   supabase: DB,
   userId: string
-): Promise<{ guide_drafts: GuideDraft[]; path_drafts: PathDraft[] }> {
-  const [guides, paths] = await Promise.all([
+): Promise<{ guide_drafts: GuideDraft[]; objective_drafts: ObjectiveDraft[] }> {
+  const [guides, objectives] = await Promise.all([
     supabase
       .from("guide_revisions")
       .select(
@@ -78,9 +78,9 @@ export async function getMyDrafts(
       .eq("status", "draft")
       .order("updated_at", { ascending: false }),
     supabase
-      .from("learning_path_revisions")
+      .from("objective_revisions")
       .select(
-        "id, learning_path_id, title, created_at, updated_at, learning_paths!learning_path_revisions_learning_path_id_fkey(slug)"
+        "id, objective_id, title, created_at, updated_at, objectives!objective_revisions_objective_id_fkey(slug)"
       )
       .eq("author_id", userId)
       .eq("status", "draft")
@@ -91,8 +91,8 @@ export async function getMyDrafts(
     console.error(guides.error);
     throw new ServiceError("Failed to load drafts", 500);
   }
-  if (paths.error) {
-    console.error(paths.error);
+  if (objectives.error) {
+    console.error(objectives.error);
     throw new ServiceError("Failed to load drafts", 500);
   }
 
@@ -105,11 +105,11 @@ export async function getMyDrafts(
       created_at: r.created_at,
       updated_at: r.updated_at,
     })),
-    path_drafts: paths.data.map((r) => ({
+    objective_drafts: objectives.data.map((r) => ({
       revision_id: r.id,
-      path_id: r.learning_path_id,
+      objective_id: r.objective_id,
       title: r.title ?? "Untitled",
-      path_slug: r.learning_paths?.slug ?? null,
+      objective_slug: r.objectives?.slug ?? null,
       created_at: r.created_at,
       updated_at: r.updated_at,
     })),

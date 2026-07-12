@@ -22,10 +22,10 @@ tags:
     description: Methods/alternatives under a topic
   - name: guide-revisions
     description: Per-guide version history snapshots
-  - name: learning-paths
+  - name: objectives
     description: Curated curricula
-  - name: learning-path-revisions
-    description: Path version history and node editing
+  - name: objective-revisions
+    description: Objective version history and node editing
   - name: graph
     description: Prerequisite edges and TODO prerequisites
   - name: subjects
@@ -78,27 +78,27 @@ paths:
   /guide-revisions/{id}/diff/{otherId}:
     $ref: "./paths/guide-revisions.yaml#/~1guide-revisions~1{id}~1diff~1{otherId}"
 
-  /paths:
-    $ref: "./paths/learning-paths.yaml#/~1paths"
-  /paths/{slug}:
-    $ref: "./paths/learning-paths.yaml#/~1paths~1{slug}"
-  /paths/{slug}/revisions:
-    $ref: "./paths/learning-paths.yaml#/~1paths~1{slug}~1revisions"
+  /objectives:
+    $ref: "./paths/objectives.yaml#/~1objectives"
+  /objectives/{slug}:
+    $ref: "./paths/objectives.yaml#/~1objectives~1{slug}"
+  /objectives/{slug}/revisions:
+    $ref: "./paths/objectives.yaml#/~1objectives~1{slug}~1revisions"
 
-  /path-revisions/{id}:
-    $ref: "./paths/learning-path-revisions.yaml#/~1path-revisions~1{id}"
-  /path-revisions/{id}/targets:
-    $ref: "./paths/learning-path-revisions.yaml#/~1path-revisions~1{id}~1targets"
-  /path-revisions/{id}/targets/{baseId}:
-    $ref: "./paths/learning-path-revisions.yaml#/~1path-revisions~1{id}~1targets~1{baseId}"
-  /path-revisions/{id}/nodes/{baseId}:
-    $ref: "./paths/learning-path-revisions.yaml#/~1path-revisions~1{id}~1nodes~1{baseId}"
-  /path-revisions/{id}/publish:
-    $ref: "./paths/learning-path-revisions.yaml#/~1path-revisions~1{id}~1publish"
-  /path-revisions/{id}/rollback:
-    $ref: "./paths/learning-path-revisions.yaml#/~1path-revisions~1{id}~1rollback"
-  /path-revisions/{id}/diff/{otherId}:
-    $ref: "./paths/learning-path-revisions.yaml#/~1path-revisions~1{id}~1diff~1{otherId}"
+  /objective-revisions/{id}:
+    $ref: "./paths/objective-revisions.yaml#/~1objective-revisions~1{id}"
+  /objective-revisions/{id}/targets:
+    $ref: "./paths/objective-revisions.yaml#/~1objective-revisions~1{id}~1targets"
+  /objective-revisions/{id}/targets/{baseId}:
+    $ref: "./paths/objective-revisions.yaml#/~1objective-revisions~1{id}~1targets~1{baseId}"
+  /objective-revisions/{id}/nodes/{baseId}:
+    $ref: "./paths/objective-revisions.yaml#/~1objective-revisions~1{id}~1nodes~1{baseId}"
+  /objective-revisions/{id}/publish:
+    $ref: "./paths/objective-revisions.yaml#/~1objective-revisions~1{id}~1publish"
+  /objective-revisions/{id}/rollback:
+    $ref: "./paths/objective-revisions.yaml#/~1objective-revisions~1{id}~1rollback"
+  /objective-revisions/{id}/diff/{otherId}:
+    $ref: "./paths/objective-revisions.yaml#/~1objective-revisions~1{id}~1diff~1{otherId}"
 
   /prerequisites:
     $ref: "./paths/graph.yaml#/~1prerequisites"

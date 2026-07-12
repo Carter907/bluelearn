@@ -2,7 +2,7 @@ import { SupabaseClient } from "@supabase/supabase-js";
 import { ServiceError } from "../lib/service-error";
 import type { Database } from "../database.types";
 
-import { type FileUpload, type UUID } from "@bluelearn/schemas";
+import { type FileUpload } from "@bluelearn/schemas";
 
 type DB = SupabaseClient<Database>;
 
@@ -60,7 +60,7 @@ export async function uploadMediaFile(
 }
 
 export async function assertRevisionLinkable(
-  revision_id: UUID,
+  revision_id: string,
   userId: string,
   db: DB
 ) {
@@ -82,8 +82,8 @@ export async function assertRevisionLinkable(
 }
 
 export async function linkAssetToRevision(
-  revision_id: UUID,
-  asset_id: UUID,
+  revision_id: string,
+  asset_id: string,
   db: DB
 ) {
   const { data: revisionEntry, error: revisionInsertError } = await db
@@ -108,7 +108,7 @@ export async function linkAssetToRevision(
 
 export async function uploadRevisionMedia(
   file: FileUpload,
-  revisionId: UUID,
+  revisionId: string,
   userId: string,
   db: DB
 ) {

@@ -149,7 +149,7 @@
   }
 
   .btn-sec {
-    @apply inline-flex items-center justify-center rounded-md border px-4 py-2 font-mono text-xs text-black uppercase transition-all duration-200;
+    @apply inline-flex items-center justify-center rounded-md border-1 border-border px-4 py-2 font-mono text-xs text-black uppercase transition-all duration-200;
     background: var(--muted);
   }
 
@@ -157,9 +157,28 @@
     transform: scale(1.05);
   }
 
+  .btn-reject {
+    @apply inline-flex items-center justify-center rounded-md px-4 py-2 font-mono text-xs text-white uppercase transition-all duration-200;
+    background: #ff0000;
+  }
+
+  .btn-reject:hover {
+    background: #ff0000;
+    transform: scale(1.05);
+  }
+  .btn-approve {
+    @apply inline-flex items-center justify-center rounded-md px-4 py-2 font-mono text-xs text-black uppercase transition-all duration-200;
+    background: #00e408;
+  }
+
+  .btn-approve:hover {
+    background: #00e408;
+    transform: scale(1.05);
+  }
+
   /* -- SURFACE BLOCK -- */
   .surface {
-    @apply rounded-lg border border-border bg-brand-surface;
+    @apply rounded-lg border-1 border-border bg-brand-surface;
   }
 
   .surface:hover {
@@ -273,6 +292,38 @@
 
   .markdown ol {
     @apply list-decimal space-y-1 pl-5;
+  }
+
+  .markdown pre {
+    @apply my-4 max-w-full overflow-x-auto rounded-lg border border-border bg-muted p-4 font-mono text-sm;
+  }
+
+  .markdown code {
+    @apply rounded border border-border/50 bg-muted px-1.5 py-0.5 font-mono text-xs text-foreground;
+  }
+
+  .markdown pre code {
+    @apply border-0 bg-transparent p-0 text-sm text-current;
+  }
+
+  .markdown table {
+    @apply my-4 block w-full border-collapse overflow-x-auto;
+  }
+
+  .markdown th {
+    @apply border border-border bg-muted px-4 py-2 text-left text-sm font-semibold;
+  }
+
+  .markdown td {
+    @apply border border-border px-4 py-2 text-sm text-muted-foreground;
+  }
+
+  .markdown .katex-display {
+    @apply max-w-full overflow-x-auto overflow-y-hidden py-2;
+  }
+
+  .markdown img {
+    @apply my-4 h-auto max-w-full rounded-lg;
   }
 }
 

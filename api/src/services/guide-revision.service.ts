@@ -2,6 +2,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { UpdateRevisionInput } from "@bluelearn/schemas";
 import type { Database } from "../database.types";
 import { ServiceError } from "../lib/service-error";
+import { diffField } from "../lib/diff";
 
 type DB = SupabaseClient<Database>;
 
@@ -9,6 +10,11 @@ type DB = SupabaseClient<Database>;
 // submitted, or earlier to its own author.
 const REVISION_DETAIL =
   "id, guide_id, title, summary, body, change_summary, status, created_at";
+
+// Slimmer row used by diffRevisions: adds author_id for the RevisionRef
+// header and drops guide_id/status that the diff response does not surface.
+const DIFF_REVISION_DETAIL =
+  "id, author_id, title, summary, body, change_summary, created_at";
 
 // Resolve a revision by id to its snapshot. 404 when RLS hides it.
 export async function getRevision(supabase: DB, id: string) {
@@ -79,4 +85,63 @@ export async function submitRevision(supabase: DB, id: string) {
   }
 
   return { review_case_id };
+}
+
+// Rendered diff between two guide revision snapshots. RLS still applies, so a
+// hidden revision 404s. Each versioned text field (title/summary/body) is
+// compared with strict equality; when changed, `diff` carries a unified-diff
+// style string (lines starting with " " are unchanged, "-" only in `from`,
+// "+" only in `to`). null === null is treated as unchanged.
+export async function diffRevisions(supabase: DB, id: string, otherId: string) {
+  const [fromRes, toRes] = await Promise.all([
+    supabase
+      .from("guide_revisions")
+      .select(DIFF_REVISION_DETAIL)
+      .eq("id", id)
+      .maybeSingle(),
+    supabase
+      .from("guide_revisions")
+      .select(DIFF_REVISION_DETAIL)
+      .eq("id", otherId)
+      .maybeSingle(),
+  ]);
+
+  if (fromRes.error) {
+    console.error(fromRes.error);
+    throw new ServiceError("Failed to load revision", 500);
+  }
+  if (toRes.error) {
+    console.error(toRes.error);
+    throw new ServiceError("Failed to load revision", 500);
+  }
+  if (!fromRes.data) throw new ServiceError("Revision not found", 404);
+  if (!toRes.data) throw new ServiceError("Revision not found", 404);
+
+  const from = fromRes.data;
+  const to = toRes.data;
+
+  return {
+    from: toRevisionRef(from),
+    to: toRevisionRef(to),
+    fields: {
+      title: diffField(from.title, to.title),
+      summary: diffField(from.summary, to.summary),
+      body: diffField(from.body, to.body),
+    },
+  };
+}
+
+// Project a revision row down to the RevisionRef shape used in diff headers.
+function toRevisionRef(row: {
+  id: string;
+  author_id: string | null;
+  created_at: string;
+  change_summary: string | null;
+}) {
+  return {
+    id: row.id,
+    author_id: row.author_id,
+    created_at: row.created_at,
+    change_summary: row.change_summary,
+  };
 }
