@@ -443,6 +443,36 @@ export type Database = {
           },
         ]
       }
+      objective_subjects: {
+        Row: {
+          objective_id: string
+          subject_id: string
+        }
+        Insert: {
+          objective_id: string
+          subject_id: string
+        }
+        Update: {
+          objective_id?: string
+          subject_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "objective_subjects_objective_id_fkey"
+            columns: ["objective_id"]
+            isOneToOne: false
+            referencedRelation: "objectives"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "objective_subjects_subject_id_fkey"
+            columns: ["subject_id"]
+            isOneToOne: false
+            referencedRelation: "subjects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       objectives: {
         Row: {
           created_at: string
@@ -883,6 +913,20 @@ export type Database = {
       }
     }
     Functions: {
+      assemble_review_panel: {
+        Args: { p_case_id: string; p_policy_default: number }
+        Returns: string
+      }
+      cast_review_decision: {
+        Args: {
+          p_case_id: string
+          p_decision: Database["public"]["Enums"]["review_outcome"]
+          p_notes?: string
+          p_reasons?: Database["public"]["Enums"]["decision_reason"][]
+        }
+        Returns: Json
+      }
+      close_review_panel: { Args: { p_case_id: string }; Returns: undefined }
       compute_walkthrough: { Args: { p_guide_base_id: string }; Returns: Json }
       create_guide: {
         Args: {
