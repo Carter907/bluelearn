@@ -33,7 +33,6 @@ export default function ContributionFlow() {
 
   const [objectiveContData, setObjectiveContData] =
     useState<ObjectiveContribution>({
-      type: "",
       title: "",
       summary: "",
       target: [],
