@@ -14,7 +14,6 @@ export type GuideContribution = {
 };
 
 export type ObjectiveContribution = {
-  type: string;
   title: string;
   summary: string;
   target: Array<string>;
