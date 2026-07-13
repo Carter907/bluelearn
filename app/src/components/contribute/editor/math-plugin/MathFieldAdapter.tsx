@@ -139,8 +139,9 @@ export const MathFieldAdapter = React.forwardRef<
       }
 
       const handleInput = (e: Event) => {
+        const val = (e.target as any).value;
         if (onChange) {
-          onChange((e.target as any).value);
+          onChange(val);
         }
       };
 
@@ -149,6 +150,20 @@ export const MathFieldAdapter = React.forwardRef<
         el.removeEventListener("input", handleInput);
       };
     }, [onChange, mathliveLoaded]);
+
+    // Clean blur on unmount to release static MathLive focus references without running on every render
+    useEffect(() => {
+      const el = internalRef.current;
+      return () => {
+        if (el) {
+          try {
+            el.blur();
+          } catch (e) {
+            // Ignore
+          }
+        }
+      };
+    }, [mathliveLoaded]);
 
     // Sync value changes from parent components
     useEffect(() => {
@@ -192,7 +207,6 @@ export const MathFieldAdapter = React.forwardRef<
         onPointerDown={handlePointerDown}
         className={className}
         style={style}
-        contentEditable={readOnly ? "false" : "true"}
       />
     );
   }

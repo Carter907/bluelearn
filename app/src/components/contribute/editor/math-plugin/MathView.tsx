@@ -2,10 +2,15 @@ import React, { useEffect, useRef, useState } from "react";
 import { useLexicalComposerContext } from "@lexical/react/LexicalComposerContext";
 import { useLexicalNodeSelection } from "@lexical/react/useLexicalNodeSelection";
 import { lexical } from "@mdxeditor/editor";
+import katex from "katex";
 import { $isMathNode } from "./MathNode";
 import { MathFieldAdapter } from "./MathFieldAdapter";
-import type { MathFieldAdapterRef } from "./MathFieldAdapter";
 import { cn } from "@/lib/utils";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 
 const {
   $getNodeByKey,
@@ -23,14 +28,15 @@ interface MathViewProps {
   inline: boolean;
 }
 
-const isTargetMathLive = (target: Event | EventTarget | null): boolean => {
+// Helper to determine if an event target is associated with MathLive/CortexJS elements (including scrims, keyboard panels, menus)
+const isTargetMathLive = (target: any): boolean => {
   if (!target) return false;
 
   let path: Array<any> = [];
-  if ("composedPath" in target && typeof target.composedPath === "function") {
+  if (target instanceof Event || (target.target && target.composedPath)) {
     path = target.composedPath();
   } else {
-    let current: any = target;
+    let current = target;
     while (current) {
       path.push(current);
       current =
@@ -42,8 +48,8 @@ const isTargetMathLive = (target: Event | EventTarget | null): boolean => {
   }
 
   for (const node of path) {
-    if (node instanceof HTMLElement) {
-      const tagName = node.tagName.toLowerCase();
+    if (node && (node.nodeType === 1 || node instanceof HTMLElement)) {
+      const tagName = (node.tagName || "").toLowerCase();
       if (
         tagName === "math-field" ||
         tagName.includes("math") ||
@@ -57,15 +63,16 @@ const isTargetMathLive = (target: Event | EventTarget | null): boolean => {
       ) {
         return true;
       }
-      const classes = Array.from(node.classList);
+      const classes = Array.from(node.classList || []);
       if (
         classes.some(
-          (c) =>
+          (c: any) =>
             c.startsWith("ML__") ||
             c.startsWith("MLK__") ||
             c.includes("mathfield") ||
             c.includes("cortexjs") ||
-            c.includes("mathlive")
+            c.includes("mathlive") ||
+            c.includes("ui-menu")
         )
       ) {
         return true;
@@ -75,186 +82,119 @@ const isTargetMathLive = (target: Event | EventTarget | null): boolean => {
   return false;
 };
 
+// Helper to render static equation HTML using KaTeX
+const renderKatex = (equation: string, inline: boolean) => {
+  try {
+    return katex.renderToString(equation, {
+      displayMode: !inline,
+      throwOnError: false,
+    });
+  } catch (error) {
+    console.error("KaTeX error:", error);
+    return `<span class="text-destructive font-mono text-xs">${equation}</span>`;
+  }
+};
+
+// Inner helper component to manage focus and keyboard actions inside the popover
+function MathPopoverEditor({
+  equation,
+  onChange,
+  onClose,
+}: {
+  equation: string;
+  onChange: (val: string) => void;
+  onClose: () => void;
+}) {
+  const editorRef = useRef<any>(null);
+
+  useEffect(() => {
+    // Focus the math-field input when the editor mounts in the popover
+    const timeoutId = setTimeout(() => {
+      if (editorRef.current) {
+        editorRef.current.focus();
+      }
+    }, 150);
+    return () => clearTimeout(timeoutId);
+  }, []);
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter" || e.key === "Escape") {
+      e.preventDefault();
+      e.stopPropagation();
+      onClose();
+    }
+  };
+
+  return (
+    <div onKeyDown={handleKeyDown} className="w-full">
+      <MathFieldAdapter
+        ref={editorRef}
+        value={equation}
+        onChange={onChange}
+        readOnly={false}
+        style={{
+          width: "100%",
+          display: "block",
+          minWidth: "16rem",
+        }}
+      />
+    </div>
+  );
+}
+
 export function MathView({ nodeKey, equation, inline }: MathViewProps) {
   const [editor] = useLexicalComposerContext();
   const [isSelected, setSelected] = useLexicalNodeSelection(nodeKey);
-  const [isFocused, setIsFocused] = useState(false);
-
-  const ref = useRef<MathFieldAdapterRef>(null);
+  const [isOpen, setIsOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement | HTMLSpanElement>(null);
 
-  const handleFocus = () => {
-    setIsFocused(true);
-    setSelected(true);
-  };
-
-  const handleBlur = (e: React.FocusEvent) => {
-    const relatedTarget = e.relatedTarget as HTMLElement | null;
-    if (
-      isTargetMathLive(relatedTarget) ||
-      isTargetMathLive(document.activeElement)
-    ) {
-      return;
-    }
-    setIsFocused(false);
-  };
-
-  const handlePointerDown = () => {
-    if (editor.isEditable()) {
-      setIsFocused(true);
-      setSelected(true);
-    }
-  };
-
-  // Helper to block events from bubbling to Lexical on placeholder interactions
-  const handlePlaceholderEvent = (e: React.SyntheticEvent) => {
-    const target = e.target as HTMLElement;
-    if (
-      target.tagName.toLowerCase() !== "math-field" &&
-      !target.closest("button")
-    ) {
-      e.preventDefault();
-      e.stopPropagation();
-      return true;
-    }
-    return false;
-  };
-
-  // Handle click/pointer outside to blur
+  // Synchronize popover open state with Lexical node selection
   useEffect(() => {
-    if (!isFocused) return;
-
-    const handleDocumentPointerDown = (e: PointerEvent) => {
-      const target = e.target as HTMLElement;
-
-      if (containerRef.current?.contains(target)) {
-        return;
-      }
-
-      if (isTargetMathLive(e)) {
-        return;
-      }
-
-      setIsFocused(false);
-      if (ref.current) {
-        ref.current.blur();
-      }
-    };
-
-    document.addEventListener("pointerdown", handleDocumentPointerDown);
-    return () => {
-      document.removeEventListener("pointerdown", handleDocumentPointerDown);
-    };
-  }, [isFocused]);
-
-  // Intercept all keyboard events at the native DOM level to prevent Lexical/MDXEditor from consuming them
-  useEffect(() => {
-    if (!isFocused) return;
-
-    const container = containerRef.current;
-    if (!container) return;
-
-    const handleKeyEvents = (evt: Event) => {
-      const e = evt as KeyboardEvent;
-      // Escape and Enter are handled specifically to exit/navigate the node
-      if (e.type === "keydown") {
-        if (e.key === "Escape") {
-          e.preventDefault();
-          e.stopPropagation();
-          if (ref.current) {
-            ref.current.blur();
-          }
-          editor.getRootElement()?.focus();
-          return;
-        }
-        if (e.key === "Enter") {
-          e.preventDefault();
-          e.stopPropagation();
-          if (ref.current) {
-            ref.current.blur();
-          }
-          editor.getRootElement()?.focus();
-          editor.update(() => {
-            const node = $getNodeByKey(nodeKey);
-            if (node !== null) {
-              node.selectNext();
-            }
-          });
-          return;
-        }
-      }
-
-      // For all other keys, stop propagation so Lexical doesn't see them
-      e.stopPropagation();
-    };
-
-    container.addEventListener("keydown", handleKeyEvents);
-    container.addEventListener("keypress", handleKeyEvents);
-    container.addEventListener("keyup", handleKeyEvents);
-
-    return () => {
-      container.removeEventListener("keydown", handleKeyEvents);
-      container.removeEventListener("keypress", handleKeyEvents);
-      container.removeEventListener("keyup", handleKeyEvents);
-    };
-  }, [editor, nodeKey, isFocused]);
-
-  // Blur the math field if the node is no longer selected in Lexical
-  useEffect(() => {
-    if (!isSelected && ref.current) {
-      ref.current.blur();
-      setIsFocused(false);
-    }
+    setIsOpen(isSelected);
   }, [isSelected]);
 
-  // Focus the math field when isFocused becomes true (e.g. after clicking placeholder)
-  useEffect(() => {
-    if (isFocused && ref.current) {
-      const timeoutId = setTimeout(() => {
-        if (ref.current) {
-          ref.current.focus();
+  const handleOpenChange = (open: boolean) => {
+    setIsOpen(open);
+    setSelected(open);
+    if (!open) {
+      // Clear Node selection in Lexical to return focus to the text flow
+      editor.update(() => {
+        const selection = $getSelection();
+        if ($isNodeSelection(selection)) {
+          selection.clear();
         }
-      }, 50);
-      return () => clearTimeout(timeoutId);
+      });
+      // Force editor focus back to text cursor
+      editor.getRootElement()?.focus();
     }
-  }, [isFocused]);
+  };
 
-  // Update Lexical Node equation on input changes
-  const handleInputChange = (newValue: string) => {
+  const handleDelete = (e?: React.SyntheticEvent) => {
+    e?.stopPropagation();
+    e?.preventDefault();
     editor.update(() => {
       const node = $getNodeByKey(nodeKey);
-      if ($isMathNode(node)) {
-        node.setEquation(newValue);
+      if (node !== null) {
+        node.remove();
       }
     });
   };
 
-  // Intercept Lexical backspace/delete commands when the math-field is actively focused
+  // Listen for delete/backspace/enter commands when the node is selected in Lexical
   useEffect(() => {
     const handleDeleteCommand = (event: KeyboardEvent) => {
-      if (isFocused) {
-        // Prevent Lexical from deleting the node when user hits Backspace/Delete inside the math-field
-        return true;
-      }
       if (isSelected && $isNodeSelection($getSelection())) {
         event.preventDefault();
-        editor.update(() => {
-          const node = $getNodeByKey(nodeKey);
-          if (node !== null) {
-            node.remove();
-          }
-        });
+        handleDelete();
         return true;
       }
       return false;
     };
 
     const handleEnterCommand = (event: KeyboardEvent) => {
-      if (!isFocused && isSelected && $isNodeSelection($getSelection())) {
+      if (isSelected && $isNodeSelection($getSelection()) && !isOpen) {
         event.preventDefault();
-        if (ref.current) {
-          ref.current.focus();
-        }
+        setIsOpen(true);
         return true;
       }
       return false;
@@ -281,192 +221,203 @@ export function MathView({ nodeKey, equation, inline }: MathViewProps) {
       unregisterBackspace();
       unregisterEnter();
     };
-  }, [editor, isSelected, nodeKey, isFocused]);
+  }, [editor, nodeKey, isSelected, isOpen]);
 
-  const handleDelete = (e: React.SyntheticEvent) => {
-    e.stopPropagation();
-    e.preventDefault();
+  const handleInputChange = (newValue: string) => {
+    console.log("[Diagnostic] handleInputChange. newValue:", newValue);
     editor.update(() => {
       const node = $getNodeByKey(nodeKey);
-      if (node !== null) {
-        node.remove();
+      if ($isMathNode(node)) {
+        console.log("[Diagnostic] MathNode setEquation to:", newValue);
+        node.setEquation(newValue);
+      } else {
+        console.warn("[Diagnostic] MathNode not found for key:", nodeKey);
       }
     });
   };
 
-  const isNodeSelected = isSelected;
-
+  // Render inline math block
   if (inline) {
     return (
-      <span
-        ref={containerRef}
-        onDragStart={(e) => e.preventDefault()}
-        onPointerUp={handlePlaceholderEvent}
-        onClick={handlePlaceholderEvent}
-        onPointerDown={(e) => {
-          if (handlePlaceholderEvent(e)) {
-            setIsFocused(true);
-            setSelected(true);
-          }
-        }}
-        className={cn(
-          "group math-node relative inline-flex items-center rounded-md transition-all duration-200 ease-in-out",
-          isNodeSelected || isFocused
-            ? "bg-primary/5 px-1.5 py-0.5 ring-2 ring-primary/40 dark:bg-primary/10"
-            : equation === ""
-              ? "cursor-pointer border border-dashed border-border bg-muted/40 px-1 hover:border-muted-foreground/30 hover:bg-muted/80"
-              : "bg-transparent px-0 ring-0 hover:bg-muted/30 hover:ring-1 hover:ring-border"
-        )}
-        style={{
-          verticalAlign: "middle",
-        }}
-      >
-        {equation === "" && !isFocused && (
+      <Popover open={isOpen} onOpenChange={handleOpenChange}>
+        <PopoverTrigger asChild>
           <span
-            key="placeholder"
-            className="pointer-events-none px-0.5 font-mono text-xs font-semibold text-muted-foreground/80 select-none"
-          >
-            ?
-          </span>
-        )}
-        <MathFieldAdapter
-          key="math-field-adapter"
-          ref={ref}
-          value={equation}
-          onChange={handleInputChange}
-          readOnly={!editor.isEditable() || !isFocused}
-          onFocus={handleFocus}
-          onBlur={handleBlur}
-          onPointerDown={handlePointerDown}
-          style={{
-            minWidth: isFocused ? "8rem" : "0px",
-            width: equation === "" && !isFocused ? "0px" : "auto",
-            height: equation === "" && !isFocused ? "0px" : "auto",
-            overflow: "hidden",
-            display: "inline-block",
-            verticalAlign: "middle",
-          }}
-        />
-        {(isNodeSelected || isFocused) && (
-          <button
-            type="button"
-            onMouseDown={(e) => {
-              e.preventDefault();
+            ref={containerRef}
+            onDragStart={(e) => e.preventDefault()}
+            onClick={(e) => {
               e.stopPropagation();
+              setSelected(true);
             }}
-            onClick={handleDelete}
-            className="ml-1 inline-flex h-4 w-4 items-center justify-center rounded-full text-muted-foreground/60 transition-colors duration-200 hover:bg-destructive/15 hover:text-destructive"
-            title="Delete equation"
+            className={cn(
+              "group math-node relative inline-flex cursor-pointer items-center rounded-md px-1.5 py-0.5 transition-all duration-200 ease-in-out select-none",
+              isSelected
+                ? "bg-primary/10 ring-2 ring-primary/50 dark:bg-primary/20"
+                : "bg-transparent ring-0 hover:bg-muted/40 hover:ring-1 hover:ring-border"
+            )}
+            style={{
+              verticalAlign: "middle",
+            }}
           >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              className="h-2.5 w-2.5"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2.5}
-                d="M6 18L18 6M6 6l12 12"
+            {equation === "" ? (
+              <span className="font-mono text-xs font-semibold text-muted-foreground/80">
+                f(x)
+              </span>
+            ) : (
+              <span
+                dangerouslySetInnerHTML={{
+                  __html: renderKatex(equation, true),
+                }}
+                className="math-preview"
               />
-            </svg>
-          </button>
-        )}
-      </span>
+            )}
+          </span>
+        </PopoverTrigger>
+
+        <PopoverContent
+          className="z-50 flex w-80 flex-col gap-2.5 rounded-lg bg-popover p-3 text-popover-foreground shadow-md ring-1 ring-foreground/10"
+          align="start"
+          sideOffset={8}
+          onOpenAutoFocus={(e) => e.preventDefault()}
+          onPointerDownOutside={(e) => {
+            if (isTargetMathLive(e)) {
+              e.preventDefault();
+            }
+          }}
+          onFocusOutside={(e) => {
+            if (isTargetMathLive(e)) {
+              e.preventDefault();
+            }
+          }}
+        >
+          <div className="flex items-center justify-between border-b border-border pb-1.5">
+            <span className="text-xs font-semibold text-foreground">
+              Edit Inline Equation
+            </span>
+            <button
+              type="button"
+              onClick={() => handleDelete()}
+              className="text-xs font-medium text-destructive hover:underline"
+            >
+              Delete
+            </button>
+          </div>
+          <div className="flex w-full items-center rounded-md border border-border border-input bg-background/50 px-2 py-1.5 text-sm shadow-xs focus-within:ring-1 focus-within:ring-ring">
+            <MathPopoverEditor
+              equation={equation}
+              onChange={handleInputChange}
+              onClose={() => handleOpenChange(false)}
+            />
+          </div>
+          <div className="mt-0.5 flex items-center justify-between text-[10px] text-muted-foreground">
+            <span>Press Enter to save</span>
+            <button
+              type="button"
+              onClick={() => handleOpenChange(false)}
+              className="rounded border border-border bg-muted px-2 py-0.5 font-semibold text-foreground hover:bg-muted/80"
+            >
+              Done
+            </button>
+          </div>
+        </PopoverContent>
+      </Popover>
     );
   }
 
+  // Render block math block
   return (
-    <div
-      ref={containerRef as React.RefObject<HTMLDivElement>}
-      onDragStart={(e) => e.preventDefault()}
-      onPointerUp={handlePlaceholderEvent}
-      onClick={handlePlaceholderEvent}
-      onPointerDown={(e) => {
-        if (handlePlaceholderEvent(e)) {
-          setIsFocused(true);
-          setSelected(true);
-        }
-      }}
-      className={cn(
-        "math-node relative mx-auto my-3 block w-fit max-w-full rounded-lg text-center transition-all duration-200 ease-in-out",
-        isNodeSelected || isFocused
-          ? "bg-primary/5 px-10 py-5 ring-2 ring-primary/40 dark:bg-primary/10"
-          : equation === ""
-            ? "cursor-pointer border border-dashed border-border bg-muted/40 px-8 py-3.5 hover:border-muted-foreground/30 hover:bg-muted/80"
-            : "bg-transparent px-6 py-3 ring-0 hover:bg-muted/30 hover:ring-1 hover:ring-border"
-      )}
-    >
-      {equation === "" && !isFocused && (
+    <Popover open={isOpen} onOpenChange={handleOpenChange}>
+      <PopoverTrigger asChild>
         <div
-          key="placeholder"
-          className="flex items-center justify-center gap-2.5 py-1 select-none"
-        >
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            className="h-4 w-4 text-primary/50 transition-colors duration-200"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-            strokeWidth={2.5}
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              d="M17 7H7l4 5-4 5h10"
-            />
-          </svg>
-          <span className="font-sans text-xs font-semibold tracking-wider text-muted-foreground/70 uppercase transition-colors duration-200">
-            Insert block equation
-          </span>
-        </div>
-      )}
-      <MathFieldAdapter
-        key="math-field-adapter"
-        ref={ref}
-        value={equation}
-        onChange={handleInputChange}
-        readOnly={!editor.isEditable() || !isFocused}
-        onFocus={handleFocus}
-        onBlur={handleBlur}
-        onPointerDown={handlePointerDown}
-        style={{
-          width: "100%",
-          display: "block",
-          height: equation === "" && !isFocused ? "0px" : "auto",
-          overflow: "hidden",
-          minWidth: "6rem",
-        }}
-      />
-      {(isNodeSelected || isFocused) && (
-        <button
-          type="button"
-          onMouseDown={(e) => {
-            e.preventDefault();
+          ref={containerRef as React.RefObject<HTMLDivElement>}
+          onDragStart={(e) => e.preventDefault()}
+          onClick={(e) => {
             e.stopPropagation();
+            setSelected(true);
           }}
-          onClick={handleDelete}
-          className="absolute top-2 right-2 flex h-4 w-4 items-center justify-center rounded-full text-muted-foreground/60 transition-colors duration-200 hover:bg-destructive/15 hover:text-destructive"
-          title="Delete equation"
+          className={cn(
+            "math-node relative mx-auto my-3 block w-fit max-w-full cursor-pointer rounded-lg text-center transition-all duration-200 ease-in-out select-none",
+            isSelected
+              ? "bg-primary/5 px-10 py-5 ring-2 ring-primary/40 dark:bg-primary/10"
+              : equation === ""
+                ? "border border-dashed border-border bg-muted/40 px-8 py-3.5 hover:border-muted-foreground/30 hover:bg-muted/80"
+                : "bg-transparent px-6 py-3 ring-0 hover:bg-muted/30 hover:ring-1 hover:ring-border"
+          )}
         >
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            className="h-2.5 w-2.5"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2.5}
-              d="M6 18L18 6M6 6l12 12"
+          {equation === "" ? (
+            <div className="flex items-center justify-center gap-2.5 py-1">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                className="h-4 w-4 text-primary/50"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                strokeWidth={2.5}
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M17 7H7l4 5-4 5h10"
+                />
+              </svg>
+              <span className="font-sans text-xs font-semibold tracking-wider text-muted-foreground/70 uppercase">
+                Insert block equation
+              </span>
+            </div>
+          ) : (
+            <div
+              dangerouslySetInnerHTML={{ __html: renderKatex(equation, false) }}
+              className="math-preview mx-auto"
             />
-          </svg>
-        </button>
-      )}
-    </div>
+          )}
+        </div>
+      </PopoverTrigger>
+
+      <PopoverContent
+        className="z-50 flex w-96 flex-col gap-2.5 rounded-lg bg-popover p-3 text-popover-foreground shadow-md ring-1 ring-foreground/10"
+        align="center"
+        sideOffset={8}
+        onOpenAutoFocus={(e) => e.preventDefault()}
+        onPointerDownOutside={(e) => {
+          if (isTargetMathLive(e)) {
+            e.preventDefault();
+          }
+        }}
+        onFocusOutside={(e) => {
+          if (isTargetMathLive(e)) {
+            e.preventDefault();
+          }
+        }}
+      >
+        <div className="flex items-center justify-between border-b border-border pb-1.5">
+          <span className="text-xs font-semibold text-foreground">
+            Edit Block Equation
+          </span>
+          <button
+            type="button"
+            onClick={() => handleDelete()}
+            className="text-xs font-medium text-destructive hover:underline"
+          >
+            Delete
+          </button>
+        </div>
+        <div className="flex w-full items-center rounded-md border border-border border-input bg-background/50 px-2 py-1.5 text-sm shadow-xs focus-within:ring-1 focus-within:ring-ring">
+          <MathPopoverEditor
+            equation={equation}
+            onChange={handleInputChange}
+            onClose={() => handleOpenChange(false)}
+          />
+        </div>
+        <div className="mt-0.5 flex items-center justify-between text-[10px] text-muted-foreground">
+          <span>Press Enter to save</span>
+          <button
+            type="button"
+            onClick={() => handleOpenChange(false)}
+            className="rounded border border-border bg-muted px-2 py-0.5 font-semibold text-foreground hover:bg-muted/80"
+          >
+            Done
+          </button>
+        </div>
+      </PopoverContent>
+    </Popover>
   );
 }
