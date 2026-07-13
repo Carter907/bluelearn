@@ -8,3 +8,11 @@ export type GuideContribution = {
   prereqs: Array<string>;
   todoPrereqs: Array<string>;
 };
+
+export type ObjectiveContribution = {
+  type: string;
+  title: string;
+  summary: string;
+  target: Array<string>;
+  featured: string;
+};
