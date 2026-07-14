@@ -211,7 +211,7 @@ Submitting a revision is a direct publish: in one transaction it flips `status =
 
 The curriculum: every topic in this revision's target closure, which of them are the objective's goals, and which the curator skipped. A row exists for every closure topic; `is_included` distinguishes a kept topic from a skipped one (a soft hide, not a delete), so the editor can still list a skipped topic as a re-includable candidate and edge projection can bridge across it. An absent row means the topic was never in the closure at all.
 
-- `id`: primary key for the node, so other tables (notably `objective_revision_node_placements`) can reference a node by a single id.
+- `id`: primary key for the node, so other tables (notably `objective_revision_node_orders`) can reference a node by a single id.
 - `revision_id`: FK to `objective_revisions`.
 - `guide_base_id`: the topic (FK to `guide_bases`).
 - `guide_id`: the guide variant the curator chose for this topic (FK to `guides`). The variant is pinned, but its content is read live through `guides.current_revision_id` (the objective shows the up-to-date guide, not a frozen body).
@@ -232,11 +232,11 @@ The projected prerequisite edges among included nodes, computed once at publish 
 - `to_guide_base_id`: target endpoint (FK to `guide_bases`), an included node of this revision.
 - Primary key `(revision_id, from_guide_base_id, to_guide_base_id)`.
 
-These edges are derived from the global `guide_edges` graph, never hand-authored: at publish, the global prerequisite graph is projected onto the included (`is_included = true`) node set, bridging skipped prerequisites (if `A → Trig → C` and Trig is skipped, the projection stores `A → C`). They are a frozen *view* of the canonical graph, not a competing prerequisite authority (see [Objectives as frozen projections](#objectives-as-frozen-projections)). These edges power the objective's graph view, which is the secondary view. The primary view is the authored linear order in `objective_revision_node_placements` below.
+These edges are derived from the global `guide_edges` graph, never hand-authored: at publish, the global prerequisite graph is projected onto the included (`is_included = true`) node set, bridging skipped prerequisites (if `A → Trig → C` and Trig is skipped, the projection stores `A → C`). They are a frozen *view* of the canonical graph, not a competing prerequisite authority (see [Objectives as frozen projections](#objectives-as-frozen-projections)). These edges power the objective's graph view, which is the secondary view. The primary view is the authored linear order in `objective_revision_node_orders` below.
 
 
 
-### `objective_revision_node_placements`
+### `objective_revision_node_orders`
 
 The objective's linear reading order, authored per target (sub-objective) and the objective's primary view. It holds one row per placed node per target, so a topic shared across targets can sit at a different position in each target's sequence. Rows exist only for included nodes.
 

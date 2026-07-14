@@ -33,28 +33,28 @@ alter table public.objective_revision_edges
 -- A node shared across targets holds a separate row and its own position under
 -- each target. Rows are authored by the curator on a draft and frozen once the
 -- revision publishes.
-create table public.objective_revision_node_placements (
+create table public.objective_revision_node_orders (
   revision_id uuid not null references public.objective_revisions (id) on delete cascade,
   target_node_id uuid not null,
   node_id uuid not null,
   position integer not null,
   primary key (revision_id, target_node_id, node_id),
   -- Both the target and the placed node must be nodes of this same revision.
-  constraint objective_revision_node_placements_target_is_node
+  constraint objective_revision_node_orders_target_is_node
     foreign key (target_node_id, revision_id)
     references public.objective_revision_nodes (id, revision_id)
     on delete cascade,
-  constraint objective_revision_node_placements_node_is_node
+  constraint objective_revision_node_orders_node_is_node
     foreign key (node_id, revision_id)
     references public.objective_revision_nodes (id, revision_id)
     on delete cascade,
-  constraint objective_revision_node_placements_position_non_negative
+  constraint objective_revision_node_orders_position_non_negative
     check (position >= 0)
 );
 
-alter table public.objective_revision_node_placements enable row level security;
-create policy "Objective placements are viewable when their revision is"
-  on public.objective_revision_node_placements for select
+alter table public.objective_revision_node_orders enable row level security;
+create policy "Objective orders are viewable when their revision is"
+  on public.objective_revision_node_orders for select
   using (
     exists (
       select 1 from public.objective_revisions r
@@ -63,8 +63,8 @@ create policy "Objective placements are viewable when their revision is"
     )
   );
 
-create policy "Curators can edit placements of their own draft revisions"
-  on public.objective_revision_node_placements for all
+create policy "Curators can edit orders of their own draft revisions"
+  on public.objective_revision_node_orders for all
   to authenticated
   using (
     public.has_role('curator')
