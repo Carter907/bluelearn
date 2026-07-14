@@ -549,6 +549,8 @@ math-field {
   vertical-align: middle !important;
 
   --contains-highlight-background-color: transparent;
+  --highlight-text: transparent;
+  --text-highlight-background-color: transparent;
 }
 
 math-field::part(container) {
