@@ -395,6 +395,7 @@ export type Database = {
           guide_base_id: string
           guide_id: string
           id: string
+          is_featured: boolean
           is_included: boolean
           is_target: boolean
           note: string | null
@@ -404,6 +405,7 @@ export type Database = {
           guide_base_id: string
           guide_id: string
           id?: string
+          is_featured?: boolean
           is_included?: boolean
           is_target?: boolean
           note?: string | null
@@ -413,6 +415,7 @@ export type Database = {
           guide_base_id?: string
           guide_id?: string
           id?: string
+          is_featured?: boolean
           is_included?: boolean
           is_target?: boolean
           note?: string | null
