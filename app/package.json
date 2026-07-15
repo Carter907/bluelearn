@@ -8,7 +8,7 @@
     "preview": "vite preview",
     "test": "vitest run --passWithNoTests",
     "lint": "eslint",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "pnpm --filter api build && tsc --noEmit"
   },
   "dependencies": {
     "@fontsource-variable/geist": "^5.2.9",
@@ -28,9 +28,11 @@
     "@tanstack/react-start": "^1.166.15",
     "@tanstack/router-plugin": "^1.166.13",
     "@xyflow/react": "^12.11.2",
+    "api": "workspace:*",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "cmdk": "^1.1.1",
+    "hono": "^4.12.18",
     "katex": "^0.16.11",
     "lucide-react": "^1.16.0",
     "mathlive": "^0.110.0",
