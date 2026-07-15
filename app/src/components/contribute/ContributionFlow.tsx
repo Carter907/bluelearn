@@ -40,8 +40,15 @@ export default function ContributionFlow({ type, setType }: PropTypes) {
     useState<ObjectiveContribution>({
       title: "",
       summary: "",
-      target: [],
+      targets: [
+        "arithmetic-introduction",
+        "algebra-how-to-express-equations",
+        "calculus-introduction",
+        "vectors-introduction",
+        "mechanics-how-to-apply-newtons-laws",
+      ],
       featured: "",
+      subObjectives: [],
     });
 
   const StepperInstance = useMemo(() => {
@@ -116,7 +123,7 @@ function Inner({
   };
 
   return (
-    <>
+    <div className="flex h-[calc(100vh-210px)] w-full flex-col gap-8">
       {/* horizontal breadcrumb stepper */}
       <Stepper.List className="flex w-full items-center justify-center text-sm">
         <Stepper.Items>
@@ -137,43 +144,32 @@ function Inner({
       </Stepper.List>
 
       {/* content */}
-      <div className="flex-1">
-        <Stepper.Content step="type">
-          <SelectType pickType={pickType} type={type} Stepper={Stepper} />
-        </Stepper.Content>
+      <div className="flex min-w-0 flex-1 flex-col">
+        <SelectType pickType={pickType} type={type} Stepper={Stepper} />
 
-        <Stepper.Content step="guide-details">
-          <GuideDetails
-            Stepper={Stepper}
-            guideContData={guideContData}
-            setGuideContData={setGuideContData}
-          />
-        </Stepper.Content>
+        <GuideDetails
+          Stepper={Stepper}
+          guideContData={guideContData}
+          setGuideContData={setGuideContData}
+        />
 
-        <Stepper.Content step="variant-details">
-          <VariantDetails Stepper={Stepper} />
-        </Stepper.Content>
+        <VariantDetails Stepper={Stepper} />
 
-        <Stepper.Content step="objective-details">
-          <ObjectiveDetails
-            Stepper={Stepper}
-            objectiveContData={objectiveContData}
-            setObjectiveContData={setObjectiveContData}
-          />
-        </Stepper.Content>
+        <ObjectiveDetails
+          Stepper={Stepper}
+          objectiveContData={objectiveContData}
+          setObjectiveContData={setObjectiveContData}
+        />
 
-        <Stepper.Content step="content">
-          <Content Stepper={Stepper} />
-        </Stepper.Content>
+        <Content Stepper={Stepper} />
+        <OrderObjectiveGuides
+          Stepper={Stepper}
+          objectiveContData={objectiveContData}
+          setObjectiveContData={setObjectiveContData}
+        />
 
-        <Stepper.Content step="objective-ordering">
-          <OrderObjectiveGuides Stepper={Stepper} />
-        </Stepper.Content>
-
-        <Stepper.Content step="submit">
-          <Submit Stepper={Stepper} />
-        </Stepper.Content>
+        <Submit Stepper={Stepper} />
       </div>
-    </>
+    </div>
   );
 }

@@ -1,5 +1,4 @@
 import { useMemo } from "react";
-
 import type { Dispatch, SetStateAction } from "react";
 import type { ObjectiveContribution } from "@/types/contributions";
 
@@ -29,15 +28,23 @@ export const ObjectiveDetails = ({
     };
   });
 
-  const targets = useMemo(
+  const targs = useMemo(
     () =>
-      guides.filter((item) => objectiveContData.target.includes(item.value)),
-    [guides, objectiveContData.target]
+      guides.filter((item) => objectiveContData.targets.includes(item.value)),
+    [guides, objectiveContData.targets]
   );
+
+  const isNextDisabled = useMemo(() => {
+    return objectiveContData.targets.length === 0;
+  }, [objectiveContData.targets]);
 
   return (
     <Stepper.Content step="objective-details">
-      <StepperActionHeader title={"Objective Details"} Stepper={Stepper} />
+      <StepperActionHeader
+        title={"Objective Details"}
+        Stepper={Stepper}
+        nextDisabled={isNextDisabled}
+      />
 
       <FieldGroup>
         <Field className="space-y-2">
@@ -91,12 +98,22 @@ export const ObjectiveDetails = ({
           <Combobox
             multiple
             items={guides}
-            value={objectiveContData.target}
-            onValueChange={(target) => {
-              setObjectiveContData((prev) => ({
-                ...prev,
-                target,
-              }));
+            value={objectiveContData.targets}
+            onValueChange={(targets) => {
+              setObjectiveContData((prev) => {
+                const featured = targets.includes(prev.featured)
+                  ? prev.featured
+                  : "";
+                const subObjectives = prev.subObjectives.filter((sub) =>
+                  targets.includes(sub.targetSlug)
+                );
+                return {
+                  ...prev,
+                  targets,
+                  featured,
+                  subObjectives,
+                };
+              });
             }}
           />
         </Field>
@@ -107,7 +124,7 @@ export const ObjectiveDetails = ({
           </FieldLabel>
 
           <Combobox
-            items={targets}
+            items={targs}
             value={objectiveContData.featured}
             onValueChange={(featured) =>
               setObjectiveContData((prev) => ({
