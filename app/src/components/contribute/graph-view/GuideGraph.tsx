@@ -218,7 +218,7 @@ export function GuideGraph({
     [curatedSequence, targetSlug, onToggleGuide]
   );
 
-  const hoverTimeoutRef = useRef<NodeJS.Timeout>();
+  const hoverTimeoutRef = useRef<NodeJS.Timeout | undefined>(undefined);
 
   const handleNodeMouseEnter = useCallback(
     (_: any, node: Node) => {

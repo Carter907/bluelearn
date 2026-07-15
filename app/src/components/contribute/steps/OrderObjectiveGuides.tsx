@@ -114,29 +114,31 @@ export const OrderObjectiveGuides = ({
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [hoveredGuide, setHoveredGuide] = useState<string | null>(null);
 
-  const checkIsCustomSequence = (): boolean => {
-    const slugToIndex: Record<string, number> = {};
-    curatedSequence.forEach((slug, idx) => {
-      slugToIndex[slug] = idx;
-    });
+  const targetGuide = targetSlug ? guidesMap.get(targetSlug) : undefined;
 
-    return curatedSequence.some((slug) => {
+  const totalDuration = useMemo(() => {
+    let mins = targetGuide?.duration || 0;
+    curatedSequence.forEach((slug) => {
       const guide = guidesMap.get(slug);
-      if (!guide) return false;
-      return guide.prerequisites.some(
-        (prereq: string) =>
-          prereq in slugToIndex && slugToIndex[prereq] > slugToIndex[slug]
-      );
+      if (guide && guide.duration) {
+        mins += guide.duration;
+      }
     });
-  };
+    return mins;
+  }, [curatedSequence, targetGuide]);
 
-  const isCustomSequence = checkIsCustomSequence();
+  const formattedDuration = useMemo(() => {
+    if (totalDuration === 0) return "0m";
+    const h = Math.floor(totalDuration / 60);
+    const m = totalDuration % 60;
+    if (h > 0 && m > 0) return `${h}h ${m}m`;
+    if (h > 0) return `${h}h`;
+    return `${m}m`;
+  }, [totalDuration]);
 
   const selectedGuidesList = guidesData.filter((g) =>
     objectiveContData.targets.includes(g.slug)
   );
-
-  const targetGuide = targetSlug ? guidesMap.get(targetSlug) : undefined;
 
   // Compute walkthrough nodes for the target
   const walkthroughNodes = useMemo(() => {
@@ -315,16 +317,10 @@ export const OrderObjectiveGuides = ({
                     Create a Curated Sequence
                   </CardTitle>
                 </div>
-                <div className="flex items-center gap-1.5 pr-1 select-none">
-                  <span
-                    className={`h-2 w-2 rounded-full transition-all duration-150 ${
-                      isCustomSequence
-                        ? "animate-pulse bg-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.5)]"
-                        : "bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]"
-                    }`}
-                  />
-                  <span className="font-mono text-[10px] font-bold tracking-wider text-muted-foreground uppercase">
-                    {isCustomSequence ? "Custom" : "Level-Ordered"}
+                <div className="flex items-center gap-1.5 rounded-full border border-primary/20 bg-primary/10 px-2 py-0.5 pr-3 select-none">
+                  <Clock className="h-3 w-3 text-primary" />
+                  <span className="font-mono text-[10px] font-bold tracking-wider text-primary uppercase">
+                    Total Time: {formattedDuration}
                   </span>
                 </div>
               </div>
