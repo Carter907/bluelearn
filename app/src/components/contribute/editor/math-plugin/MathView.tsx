@@ -177,14 +177,10 @@ export function MathView({ nodeKey, equation, inline }: MathViewProps) {
   const [isOpen, setIsOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement | HTMLSpanElement>(null);
 
-  // Synchronize popover open state with Lexical node selection
-  useEffect(() => {
-    setIsOpen(isSelected);
-  }, [isSelected]);
-
+  // Close popover if selection is lost externally
   useEffect(() => {
     if (!isSelected && isOpen) {
-      console.trace("[DEBUG] Lexical cleared selection internally!");
+      setIsOpen(false);
     }
   }, [isSelected, isOpen]);
 
@@ -283,6 +279,7 @@ export function MathView({ nodeKey, equation, inline }: MathViewProps) {
             onClick={(e) => {
               e.stopPropagation();
               setSelected(true);
+              setIsOpen(true);
             }}
             className={cn(
               "group math-node relative inline-flex cursor-pointer items-center rounded-md border transition-all duration-200 ease-in-out select-none",
@@ -395,6 +392,7 @@ export function MathView({ nodeKey, equation, inline }: MathViewProps) {
           onClick={(e) => {
             e.stopPropagation();
             setSelected(true);
+            setIsOpen(true);
           }}
           className={cn(
             "math-node relative mx-auto my-3 block w-fit max-w-full cursor-pointer rounded-lg text-center transition-all duration-200 ease-in-out select-none",
