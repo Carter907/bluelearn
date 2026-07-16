@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { Dispatch, SetStateAction } from "react";
 import type { GuideContribution } from "@/types/contributions";
 
@@ -6,10 +6,17 @@ import { StepperActionHeader } from "@/components/contribute/StepperActionHeader
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 
-import subjectsData from "@/data/subjects.json";
-import guidesData from "@/data/guides.json";
+import { listSubjects } from "@/lib/api/subjects";
+import { listGuides } from "@/lib/api/guides";
 import { Button } from "@/components/ui/button";
 import { Combobox } from "@/components/ui/combobox";
+
+type SubjectOption = { slug: string; name: string };
+type GuideOption = {
+  slug: string | null;
+  title: string | null;
+  summary: string | null;
+};
 
 type PropTypes = {
   Stepper: any;
@@ -30,6 +37,23 @@ export const GuideDetails = ({
     name: "",
     summary: "",
   });
+
+  const [subjects, setSubjects] = useState<Array<SubjectOption>>([]);
+  const [guides, setGuides] = useState<Array<GuideOption>>([]);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    const opts = { signal: controller.signal };
+
+    listSubjects(opts)
+      .then(setSubjects)
+      .catch(() => {});
+    listGuides(opts)
+      .then(setGuides)
+      .catch(() => {});
+
+    return () => controller.abort();
+  }, []);
 
   return (
     <Stepper.Content step="guide-details">
@@ -126,18 +150,17 @@ export const GuideDetails = ({
 
           <Combobox
             multiple
-            items={subjectsData.map((s) => {
+            items={subjects.map((s) => {
               return {
                 value: s.slug,
                 label: s.name,
-                description: s.summary,
               };
             })}
             value={guideContData.subjects}
-            onValueChange={(subjects) =>
+            onValueChange={(slugs) =>
               setGuideContData((prev) => ({
                 ...prev,
-                subjects,
+                subjects: slugs,
               }))
             }
           />
@@ -214,13 +237,15 @@ export const GuideDetails = ({
 
           <Combobox
             multiple
-            items={guidesData.map((g) => {
-              return {
-                value: g.slug,
-                label: g.title,
-                description: g.summary,
-              };
-            })}
+            items={guides
+              .filter((g): g is GuideOption & { slug: string } => !!g.slug)
+              .map((g) => {
+                return {
+                  value: g.slug,
+                  label: g.title ?? g.slug,
+                  description: g.summary ?? undefined,
+                };
+              })}
             value={guideContData.prereqs}
             onValueChange={(prereqs) =>
               setGuideContData((prev) => ({

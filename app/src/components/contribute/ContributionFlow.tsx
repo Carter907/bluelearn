@@ -1,6 +1,7 @@
 import { defineStepper } from "@stepperize/react";
 import { ChevronRight } from "lucide-react";
 import { Fragment, useMemo, useState } from "react";
+import { toast } from "sonner";
 
 import type { Dispatch, SetStateAction } from "react";
 
@@ -9,6 +10,8 @@ import type {
   GuideContribution,
   ObjectiveContribution,
 } from "@/types/contributions";
+import { createGuide } from "@/lib/api/guides";
+import { submitRevision, updateRevision } from "@/lib/api/guideRevisions";
 
 import { SelectType } from "@/components/contribute/steps/SelectType";
 import { GuideDetails } from "@/components/contribute/steps/GuideDetails";
@@ -30,6 +33,7 @@ export default function ContributionFlow({ type, setType }: PropTypes) {
     type: "",
     title: "",
     summary: "",
+    body: "",
     subjects: [],
     newSubjects: [],
     prereqs: [],
@@ -122,6 +126,65 @@ function Inner({
     });
   };
 
+  // Draft revision id once it exists: null before the first save, so we know to
+  // create vs. patch.
+  const [revisionId, setRevisionId] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+
+  const draftFields = () => ({
+    title: guideContData.title || null,
+    summary: guideContData.summary || null,
+    body: guideContData.body || null,
+    tags: guideContData.subjects,
+    prerequisites: guideContData.prereqs,
+    newSubjects: guideContData.newSubjects.map((s) => ({
+      name: s.name,
+      summary: s.summary || null,
+    })),
+    todoPrereqs: guideContData.todoPrereqs,
+  });
+
+  // Create the guide on first save, patch it after. Returns the revision id.
+  const persistDraft = async () => {
+    if (revisionId) {
+      await updateRevision(revisionId, draftFields());
+      return revisionId;
+    }
+
+    const id = await createGuide({
+      knowledge_type:
+        guideContData.type === "practical" ? "practical" : "theoretical",
+      ...draftFields(),
+    });
+    setRevisionId(id);
+    return id;
+  };
+
+  const saveDraft = async () => {
+    setSubmitting(true);
+    try {
+      await persistDraft();
+      toast.success("Draft saved");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Could not save draft");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const publish = async () => {
+    setSubmitting(true);
+    try {
+      const id = await persistDraft();
+      await submitRevision(id);
+      toast.success("Submitted for review");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Could not submit");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   return (
     <div className="flex h-[calc(100vh-210px)] w-full flex-col gap-8">
       {/* horizontal breadcrumb stepper */}
@@ -161,14 +224,25 @@ function Inner({
           setObjectiveContData={setObjectiveContData}
         />
 
-        <Content Stepper={Stepper} />
+        <Content
+          Stepper={Stepper}
+          body={guideContData.body}
+          onBodyChange={(body) =>
+            setGuideContData((prev) => ({ ...prev, body }))
+          }
+        />
         <OrderObjectiveGuides
           Stepper={Stepper}
           objectiveContData={objectiveContData}
           setObjectiveContData={setObjectiveContData}
         />
 
-        <Submit Stepper={Stepper} />
+        <Submit
+          Stepper={Stepper}
+          submitting={submitting}
+          onSaveDraft={saveDraft}
+          onPublish={publish}
+        />
       </div>
     </div>
   );

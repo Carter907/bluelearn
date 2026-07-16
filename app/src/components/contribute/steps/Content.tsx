@@ -5,9 +5,11 @@ const Editor = lazy(() => import("../editor/Editor"));
 
 type PropTypes = {
   Stepper: any;
+  body: string;
+  onBodyChange: (body: string) => void;
 };
 
-export const Content = ({ Stepper }: PropTypes) => {
+export const Content = ({ Stepper, body, onBodyChange }: PropTypes) => {
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
@@ -26,7 +28,7 @@ export const Content = ({ Stepper }: PropTypes) => {
             </div>
           }
         >
-          <Editor />
+          <Editor value={body} onChange={onBodyChange} />
         </Suspense>
       )}
     </Stepper.Content>
