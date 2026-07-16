@@ -65,7 +65,7 @@ export default function ContributionFlow({ type, setType }: PropTypes) {
   return (
     <Stepper.Root
       linear
-      className="flex min-h-[calc(100vh_-_210px)] w-full flex-col gap-8"
+      className="flex min-h-[calc(100vh-210px)] w-full flex-col gap-8"
     >
       {({ stepper }: any) => (
         <Inner

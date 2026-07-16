@@ -16,7 +16,6 @@ import type { Dispatch, SetStateAction } from "react";
 import type { ObjectiveContribution } from "@/types/contributions";
 import { Badge } from "@/components/ui/badge";
 import { StepperActionHeader } from "@/components/contribute/StepperActionHeader";
-import { Combobox } from "@/components/ui/combobox";
 import {
   Card,
   CardContent,
@@ -136,10 +135,6 @@ export const OrderObjectiveGuides = ({
     return `${m}m`;
   }, [totalDuration]);
 
-  const selectedGuidesList = guidesData.filter((g) =>
-    objectiveContData.targets.includes(g.slug)
-  );
-
   // Compute walkthrough nodes for the target
   const walkthroughNodes = useMemo(() => {
     return targetSlug ? computeWalkthrough(targetSlug) : [];
@@ -221,6 +216,23 @@ export const OrderObjectiveGuides = ({
 
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
   const draggedIndexRef = useRef<number | null>(null);
+  const [scrollContainer, setScrollContainer] = useState<HTMLDivElement | null>(
+    null
+  );
+
+  useEffect(() => {
+    if (!scrollContainer) return;
+
+    const handleWheel = (e: WheelEvent) => {
+      if (e.deltaY !== 0) {
+        e.preventDefault();
+        scrollContainer.scrollLeft += e.deltaY;
+      }
+    };
+
+    scrollContainer.addEventListener("wheel", handleWheel, { passive: false });
+    return () => scrollContainer.removeEventListener("wheel", handleWheel);
+  }, [scrollContainer]);
 
   const handleDragStart = (e: React.DragEvent, index: number) => {
     draggedIndexRef.current = index;
@@ -271,31 +283,53 @@ export const OrderObjectiveGuides = ({
       <StepperActionHeader title={"Order Guides"} Stepper={Stepper} />
 
       <FieldGroup className="space-y-6">
-        {/* Dropdown: Pick Target Guide */}
-        <Field className="max-w-3xl space-y-2">
+        {/* Target Guide Sequence */}
+        <Field className="space-y-3">
           <FieldLabel className="font-mono text-[11px] tracking-[0.08em] text-muted-foreground uppercase">
-            Target Guide
+            Target Guide Sequence
           </FieldLabel>
-          <div className="flex items-center gap-4">
-            <div className="w-75 shrink-0">
-              <Combobox
-                items={selectedGuidesList.map((g) => ({
-                  value: g.slug,
-                  label: g.title,
-                  description: g.summary,
-                }))}
-                value={targetSlug}
-                onValueChange={(val) => setTargetSlug(val)}
-              />
-            </div>
-            <div className="self-stretch border-l border-border/80" />
-            <FieldDescription className="mt-0 max-w-xs text-[11px] leading-normal text-muted-foreground/75">
-              Select which guide represents the final endpoint (target) of this
-              sub-objective.
-            </FieldDescription>
-          </div>
-        </Field>
+          <div
+            ref={setScrollContainer}
+            className="flex scrollbar-thin items-center gap-2 overflow-x-auto pb-2"
+          >
+            {objectiveContData.targets.map((slug, index) => {
+              const guide = guidesMap.get(slug);
+              if (!guide) return null;
 
+              const isActive = slug === targetSlug;
+
+              return (
+                <div key={slug} className="flex shrink-0 items-center gap-2">
+                  {index > 0 && <div className="h-px w-4 bg-border/60" />}
+                  <button
+                    type="button"
+                    onClick={() => setTargetSlug(slug)}
+                    className={`flex items-center gap-2 rounded-full border px-3 py-1.5 text-sm font-medium transition-colors ${
+                      isActive
+                        ? "border-primary bg-primary/10 text-primary ring-1 ring-primary/20"
+                        : "border-border bg-background text-muted-foreground hover:border-primary/50 hover:bg-muted"
+                    }`}
+                  >
+                    <span
+                      className={`flex h-5 w-5 items-center justify-center rounded-full text-xs ${
+                        isActive
+                          ? "bg-primary text-primary-foreground"
+                          : "bg-muted-foreground/20 text-muted-foreground"
+                      }`}
+                    >
+                      {index + 1}
+                    </span>
+                    {guide.title}
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+          <FieldDescription className="text-[11px] text-muted-foreground/75">
+            Select a target guide from your sequence to curate its
+            prerequisites.
+          </FieldDescription>
+        </Field>
         <div
           className={
             isFullscreen
