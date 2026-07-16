@@ -17,6 +17,7 @@ import { Content } from "@/components/contribute/steps/Content";
 import { ObjectiveDetails } from "@/components/contribute/steps/ObjectiveDetails";
 import { Submit } from "@/components/contribute/steps/Submit";
 import { OrderObjectiveGuides } from "@/components/contribute/steps/OrderObjectiveGuides";
+import { OrderTargetGuides } from "@/components/contribute/steps/OrderTargetGuides";
 
 import { flows, typeStep } from "@/lib/contributionFlow";
 
@@ -156,6 +157,12 @@ function Inner({
         <VariantDetails Stepper={Stepper} />
 
         <ObjectiveDetails
+          Stepper={Stepper}
+          objectiveContData={objectiveContData}
+          setObjectiveContData={setObjectiveContData}
+        />
+
+        <OrderTargetGuides
           Stepper={Stepper}
           objectiveContData={objectiveContData}
           setObjectiveContData={setObjectiveContData}
