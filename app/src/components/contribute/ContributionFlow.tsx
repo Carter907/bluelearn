@@ -1,6 +1,6 @@
 import { defineStepper } from "@stepperize/react";
 import { ChevronRight } from "lucide-react";
-import { Fragment, useMemo, useState } from "react";
+import { Fragment, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
 import type { Dispatch, SetStateAction } from "react";
@@ -10,8 +10,12 @@ import type {
   GuideContribution,
   ObjectiveContribution,
 } from "@/types/contributions";
-import { createGuide } from "@/lib/api/guides";
+import type { GuideType, HydratedGuide } from "@/types/guides";
+import { createGuide, listGuides } from "@/lib/api/guides";
+import { getMyIdentity } from "@/lib/api/identity";
+import { listSubjects } from "@/lib/api/subjects";
 import { submitRevision, updateRevision } from "@/lib/api/guideRevisions";
+import { estimateReadMinutes, formatDate } from "@/lib/guideUtils";
 
 import { SelectType } from "@/components/contribute/steps/SelectType";
 import { GuideDetails } from "@/components/contribute/steps/GuideDetails";
@@ -131,6 +135,78 @@ function Inner({
   const [revisionId, setRevisionId] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
+  // subject/guide options are fetched once here and shared by the details step
+  // (comboboxes) and the submit step (resolving slugs to names for the preview).
+  const [subjectOptions, setSubjectOptions] = useState<
+    Awaited<ReturnType<typeof listSubjects>>
+  >([]);
+  const [guideOptions, setGuideOptions] = useState<
+    Awaited<ReturnType<typeof listGuides>>
+  >([]);
+  // author handle for the preview byline
+  const [username, setUsername] = useState<string | null>(null);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    const opts = { signal: controller.signal };
+
+    listSubjects(opts)
+      .then(setSubjectOptions)
+      .catch(() => {});
+    listGuides(opts)
+      .then(setGuideOptions)
+      .catch(() => {});
+    getMyIdentity(opts)
+      .then((data) => setUsername(data.profile.username))
+      .catch(() => {});
+
+    return () => controller.abort();
+  }, []);
+
+  // shape the in-progress form as a HydratedGuide so the submit step can render
+  // it with the same component the published page uses. slugs are resolved back
+  // to names/titles from the fetched lists for the tag/prereq labels.
+  const previewGuide: HydratedGuide = useMemo(() => {
+    const nameBySlug = new Map(
+      subjectOptions.map((s) => [s.slug, s.name] as const)
+    );
+    const titleBySlug = new Map(
+      guideOptions
+        .filter((g) => g.slug)
+        .map((g) => [g.slug as string, g.title ?? (g.slug as string)] as const)
+    );
+
+    return {
+      slug: "",
+      title: guideContData.title || "Untitled guide",
+      author: username ?? "You",
+      summary: guideContData.summary,
+      created_at: formatDate(new Date()),
+      duration: estimateReadMinutes(guideContData.body),
+      breadcrumbs: [],
+      tags: [
+        ...guideContData.subjects.map((slug) => ({
+          slug,
+          name: nameBySlug.get(slug) ?? slug,
+        })),
+        ...guideContData.newSubjects.map((s) => ({
+          slug: s.name,
+          name: s.name,
+        })),
+      ],
+      prerequisites: guideContData.prereqs.map((slug) => ({
+        slug,
+        title: titleBySlug.get(slug) ?? slug,
+      })),
+      content: guideContData.body,
+    };
+  }, [guideContData, subjectOptions, guideOptions, username]);
+
+  const guideType: GuideType | undefined =
+    guideContData.type === "practical" || guideContData.type === "theoretical"
+      ? guideContData.type
+      : undefined;
+
   const draftFields = () => ({
     title: guideContData.title || null,
     summary: guideContData.summary || null,
@@ -214,9 +290,17 @@ function Inner({
           Stepper={Stepper}
           guideContData={guideContData}
           setGuideContData={setGuideContData}
+          subjects={subjectOptions}
+          guides={guideOptions}
+          onSaveDraft={saveDraft}
+          submitting={submitting}
         />
 
-        <VariantDetails Stepper={Stepper} />
+        <VariantDetails
+          Stepper={Stepper}
+          onSaveDraft={saveDraft}
+          submitting={submitting}
+        />
 
         <ObjectiveDetails
           Stepper={Stepper}
@@ -230,6 +314,8 @@ function Inner({
           onBodyChange={(body) =>
             setGuideContData((prev) => ({ ...prev, body }))
           }
+          onSaveDraft={saveDraft}
+          submitting={submitting}
         />
         <OrderObjectiveGuides
           Stepper={Stepper}
@@ -239,9 +325,11 @@ function Inner({
 
         <Submit
           Stepper={Stepper}
-          submitting={submitting}
+          guide={previewGuide}
+          guideType={guideType}
           onSaveDraft={saveDraft}
           onPublish={publish}
+          submitting={submitting}
         />
       </div>
     </div>

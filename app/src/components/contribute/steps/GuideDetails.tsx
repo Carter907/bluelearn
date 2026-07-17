@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import type { Dispatch, SetStateAction } from "react";
 import type { GuideContribution } from "@/types/contributions";
 
@@ -6,8 +6,6 @@ import { StepperActionHeader } from "@/components/contribute/StepperActionHeader
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 
-import { listSubjects } from "@/lib/api/subjects";
-import { listGuides } from "@/lib/api/guides";
 import { Button } from "@/components/ui/button";
 import { Combobox } from "@/components/ui/combobox";
 
@@ -22,12 +20,20 @@ type PropTypes = {
   Stepper: any;
   guideContData: GuideContribution;
   setGuideContData: Dispatch<SetStateAction<GuideContribution>>;
+  subjects: Array<SubjectOption>;
+  guides: Array<GuideOption>;
+  onSaveDraft: () => void;
+  submitting?: boolean;
 };
 
 export const GuideDetails = ({
   Stepper,
   guideContData,
   setGuideContData,
+  subjects,
+  guides,
+  onSaveDraft,
+  submitting,
 }: PropTypes) => {
   const [todoPrereq, setTodoPrereq] = useState<string>("");
   const [newSubject, setNewSubject] = useState<{
@@ -38,26 +44,14 @@ export const GuideDetails = ({
     summary: "",
   });
 
-  const [subjects, setSubjects] = useState<Array<SubjectOption>>([]);
-  const [guides, setGuides] = useState<Array<GuideOption>>([]);
-
-  useEffect(() => {
-    const controller = new AbortController();
-    const opts = { signal: controller.signal };
-
-    listSubjects(opts)
-      .then(setSubjects)
-      .catch(() => {});
-    listGuides(opts)
-      .then(setGuides)
-      .catch(() => {});
-
-    return () => controller.abort();
-  }, []);
-
   return (
     <Stepper.Content step="guide-details">
-      <StepperActionHeader title={"Guide Details"} Stepper={Stepper} />
+      <StepperActionHeader
+        title={"Guide Details"}
+        Stepper={Stepper}
+        onSaveDraft={onSaveDraft}
+        submitting={submitting}
+      />
 
       <FieldGroup>
         <FieldLabel className="font-mono tracking-[0.08em] uppercase">

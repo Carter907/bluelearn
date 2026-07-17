@@ -7,9 +7,17 @@ type PropTypes = {
   Stepper: any;
   body: string;
   onBodyChange: (body: string) => void;
+  onSaveDraft: () => void;
+  submitting?: boolean;
 };
 
-export const Content = ({ Stepper, body, onBodyChange }: PropTypes) => {
+export const Content = ({
+  Stepper,
+  body,
+  onBodyChange,
+  onSaveDraft,
+  submitting,
+}: PropTypes) => {
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
@@ -18,7 +26,12 @@ export const Content = ({ Stepper, body, onBodyChange }: PropTypes) => {
 
   return (
     <Stepper.Content step="content">
-      <StepperActionHeader title={"Content"} Stepper={Stepper} />
+      <StepperActionHeader
+        title={"Content"}
+        Stepper={Stepper}
+        onSaveDraft={onSaveDraft}
+        submitting={submitting}
+      />
 
       {mounted && (
         <Suspense

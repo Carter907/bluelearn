@@ -12,8 +12,8 @@ function RouteComponent() {
   const [type, setType] = useState<ContributionType | null>(null);
 
   return (
-    <div className="mx-auto max-w-[1280px] border-x bg-background">
-      <section className="border-b px-8 py-8 lg:px-16">
+    <div className="mx-auto max-w-[1280px] bg-background">
+      <section className="px-8 py-8 lg:px-16">
         <ContributionFlow type={type} setType={setType} />
       </section>
     </div>
