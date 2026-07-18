@@ -128,7 +128,7 @@ function Inner({
   };
 
   return (
-    <div className="flex h-[calc(100vh-210px)] w-full flex-col gap-8">
+    <div className="flex min-h-[calc(100vh-210px)] w-full flex-col gap-8">
       {/* horizontal breadcrumb stepper */}
       <Stepper.List className="flex w-full items-center justify-center text-sm">
         <Stepper.Items>
