@@ -1,12 +1,11 @@
-import { useMemo, useState } from "react";
-import { Link, createFileRoute, notFound } from "@tanstack/react-router";
+import { useState } from "react";
+import { createFileRoute, notFound } from "@tanstack/react-router";
 
-import type { GuideReference, HydratedReviewGuide } from "@/types/guides";
+import type { HydratedReviewGuide } from "@/types/guides";
 
 import { Separator } from "@/components/ui/separator";
 import { CollapsibleSection } from "@/components/CollapsibleSection";
 
-import { extractHeadings } from "@/lib/guideUtils";
 import { getGuideBySlug, hydrateReviewGuide } from "@/lib/getData";
 
 import guides from "@/data/guides.json";
