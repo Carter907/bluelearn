@@ -5,7 +5,14 @@ import {
   notFound,
   useLocation,
 } from "@tanstack/react-router";
-import { ChevronDown, ChevronUp, Flag, House, Pencil } from "lucide-react";
+import {
+  ChevronDown,
+  ChevronUp,
+  Ellipsis,
+  House,
+  Pencil,
+  Plus,
+} from "lucide-react";
 
 import type { GuideReference, HydratedGuide } from "@/types/guides";
 
@@ -23,6 +30,12 @@ import subjects from "@/data/subjects.json";
 import "katex/dist/katex.min.css";
 import { Sidebar } from "@/components/Sidebar";
 import { GuideReader } from "@/components/GuideReader";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 export const Route = createFileRoute("/guides/$slug")({
   component: RouteComponent,
@@ -49,6 +62,16 @@ function RouteComponent() {
     () => extractHeadings(guide.content),
     [guide.content]
   );
+
+  const guideMenuItems = [
+    { label: "Edit Guide", to: "/edit", icon: <Pencil className="h-4 w-4" /> },
+    {
+      label: "Create Variant",
+      to: "/contribute",
+      icon: <Plus className="h-4 w-4" />,
+    },
+    // { label: "Report", to: "/report", <Flag className="h-4 w-4" /> },// TODO: Implement post v1
+  ];
 
   return (
     <div className="mx-auto h-[calc(100vh-70px)] max-w-[1280px] border-x bg-background">
@@ -123,7 +146,7 @@ function RouteComponent() {
         </Sidebar>
 
         {/* MAIN */}
-        <main className="h-[calc(100vh-70px)] min-w-0 overflow-y-auto px-10 py-8 lg:px-16">
+        <main className="h-[calc(100vh-70px)] min-w-0 overflow-y-auto px-10 py-4 lg:px-16">
           {/* Breadcrumbs */}
           <div className="mb-6 flex items-center justify-between gap-4">
             <ul className="flex min-w-0 flex-nowrap items-center gap-2 text-xs tracking-[0.08em] text-muted-foreground uppercase">
@@ -158,11 +181,9 @@ function RouteComponent() {
 
             {/* Actions */}
             <div className="flex shrink-0 items-center gap-2">
-              <Button variant="default" size="icon">
-                <Pencil className="h-4 w-4" />
+              <Button variant="outline" className="btn-sec">
+                View Walkthrough
               </Button>
-
-              <Button variant="outline">Open in Graph</Button>
 
               <Button variant="ghost" size="icon">
                 <ChevronUp className="h-4 w-4" />
@@ -172,9 +193,28 @@ function RouteComponent() {
                 <ChevronDown className="h-4 w-4" />
               </Button>
 
-              <Button variant="ghost" size="icon">
-                <Flag className="h-4 w-4" />
-              </Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-9 w-9 rounded-md"
+                  >
+                    <Ellipsis className="h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+
+                <DropdownMenuContent align="end" className="w-48 font-mono">
+                  {guideMenuItems.map((item) => (
+                    <DropdownMenuItem key={item.to} asChild>
+                      <Link to={item.to} className="text-xs">
+                        {item.icon}
+                        {item.label}
+                      </Link>
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
           </div>
 
