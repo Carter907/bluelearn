@@ -151,8 +151,7 @@ async function replacePrerequisites(
   }
 }
 
-// Replace the base's open todos with the given titles. Resolved ones are left
-// alone.
+// Replace a draft guide's open todos.
 async function replaceTodos(supabase: DB, baseId: string, titles: string[]) {
   const { error: delError } = await supabase
     .from("todo_prerequisites")
@@ -169,8 +168,7 @@ async function replaceTodos(supabase: DB, baseId: string, titles: string[]) {
   }
 }
 
-// Persist the tag/edge fields a draft accepts. New subjects are created then
-// folded into the tag set. Shared by guide creation and draft edits.
+// Saves a draft's subject tags, prerequisite links, and todo notes.
 export async function syncDraftTagsAndEdges(
   supabase: DB,
   userId: string,

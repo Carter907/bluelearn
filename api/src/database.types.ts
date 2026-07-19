@@ -1057,6 +1057,10 @@ export type Database = {
         Args: { p_revision_id: string }
         Returns: string
       }
+      wilson_lower_bound: {
+        Args: { downvotes: number; upvotes: number; z?: number }
+        Returns: number
+      }
     }
     Enums: {
       app_role: "verifier" | "moderator" | "curator" | "admin"

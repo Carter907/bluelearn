@@ -111,7 +111,7 @@ async function countObjectivesBySubject(supabase: DB) {
 
 // Create-or-fetch by slug: subjects are only created through contribution flows,
 // where a re-saved draft or a name two drafts share must resolve to the existing
-// row. New rows start 'draft' (column default), promoted on guide approval.
+// row.
 export async function createSubject(
   supabase: DB,
   userId: string,

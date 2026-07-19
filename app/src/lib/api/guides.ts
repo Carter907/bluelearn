@@ -13,8 +13,6 @@ export async function listGuides({ signal }: FetchOptions = {}) {
   return data;
 }
 
-// Creates the guide + its first draft revision. Returns the draft revision id
-// so the flow can keep editing or submit it.
 export async function createGuide(
   body: InferRequestType<typeof guides.$post>["json"]
 ) {

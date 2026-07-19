@@ -1,8 +1,6 @@
 import { insert, type Insert } from "../helpers";
 
 export function createSubject(overrides: Partial<Insert<"subjects">> = {}) {
-  // Published by default: factories model live data. Override status for the
-  // draft (unreviewed inline proposal) case.
   const unique = crypto.randomUUID().slice(0, 13);
   return insert("subjects", {
     slug: `subject-${unique}`,

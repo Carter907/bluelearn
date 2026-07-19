@@ -47,7 +47,7 @@ create policy "Authors can remove todos on their draft topics"
   );
 
 -- A revision can only be submitted once it's complete: title, summary, body and
--- at least one tag. Prereqs and todos are optional. check_violation -> 422.
+-- at least one tag. Prereqs and todos are optional.
 create or replace function public.submit_guide_revision(p_revision_id uuid)
 returns uuid
 language plpgsql
@@ -64,8 +64,8 @@ declare
   v_body text;
   v_tag_count integer;
 begin
-  -- RLS confines this to the caller's own draft; zero rows means the revision is
-  -- missing, not theirs, or already submitted.
+  -- RLS confines this to the caller's own draft, so zero rows means the revision
+  -- is missing, not theirs, or already submitted.
   select title, summary, body into v_title, v_summary, v_body
     from public.guide_revisions
     where id = p_revision_id and status = 'draft';

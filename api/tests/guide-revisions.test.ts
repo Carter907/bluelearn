@@ -21,7 +21,8 @@ async function createDraftRevision(authorId: string) {
   return { base, guide, revision };
 }
 
-// A draft that passes the submit completeness check: title, summary, body, tag.
+// A draft that passes the submit completeness check: title, summary, body,
+// and tags.
 async function createCompleteDraft(authorId: string) {
   const { base, guide, revision } = await createDraftRevision(authorId);
   await admin
