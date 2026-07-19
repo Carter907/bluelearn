@@ -3,7 +3,12 @@ import type { Dispatch, SetStateAction } from "react";
 import type { ObjectiveContribution } from "@/types/contributions";
 
 import { StepperActionHeader } from "@/components/contribute/StepperActionHeader";
-import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
+import {
+  Field,
+  FieldDescription,
+  FieldGroup,
+  FieldLabel,
+} from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Combobox } from "@/components/ui/combobox";
@@ -36,8 +41,18 @@ export const ObjectiveDetails = ({
   );
 
   const isNextDisabled = useMemo(() => {
-    return objectiveContData.targets.length === 0;
-  }, [objectiveContData.targets]);
+    return (
+      objectiveContData.title.trim() === "" ||
+      objectiveContData.summary.trim() === "" ||
+      objectiveContData.targets.length === 0 ||
+      !objectiveContData.featured
+    );
+  }, [
+    objectiveContData.title,
+    objectiveContData.summary,
+    objectiveContData.targets,
+    objectiveContData.featured,
+  ]);
 
   return (
     <Stepper.Content step="objective-details">
@@ -49,9 +64,14 @@ export const ObjectiveDetails = ({
 
       <FieldGroup>
         <Field className="space-y-2">
-          <FieldLabel className="font-mono tracking-[0.08em] uppercase">
-            Title
-          </FieldLabel>
+          <div className="space-y-1">
+            <FieldLabel className="font-mono tracking-[0.08em] uppercase">
+              Title
+            </FieldLabel>
+            <FieldDescription className="text-xs">
+              A clear, concise name for this learning objective.
+            </FieldDescription>
+          </div>
 
           <Input
             id="title"
@@ -72,13 +92,20 @@ export const ObjectiveDetails = ({
         </Field>
 
         <Field className="space-y-2">
-          <FieldLabel className="font-mono tracking-[0.08em] uppercase">
-            Summary
-          </FieldLabel>
+          <div className="space-y-1">
+            <FieldLabel className="font-mono tracking-[0.08em] uppercase">
+              Summary
+            </FieldLabel>
+            <FieldDescription className="text-xs">
+              Briefly describe what the learner will achieve by completing this
+              objective.
+            </FieldDescription>
+          </div>
 
           <Textarea
             className="h-32 w-full min-w-0 resize-none"
             rows={4}
+            maxLength={250}
             placeholder="Write a summary for the objective."
             required
             value={objectiveContData.summary}
@@ -92,9 +119,15 @@ export const ObjectiveDetails = ({
         </Field>
 
         <Field className="space-y-2">
-          <FieldLabel className="font-mono tracking-[0.08em] uppercase">
-            Target Guides
-          </FieldLabel>
+          <div className="space-y-1">
+            <FieldLabel className="font-mono tracking-[0.08em] uppercase">
+              Target Guides
+            </FieldLabel>
+            <FieldDescription className="text-xs">
+              Select the guides you think would be appropriate for this learning
+              objective.
+            </FieldDescription>
+          </div>
 
           <Combobox
             multiple
@@ -120,11 +153,19 @@ export const ObjectiveDetails = ({
         </Field>
 
         <Field className="space-y-2">
-          <FieldLabel className="font-mono tracking-[0.08em] uppercase">
-            Featured Guide
-          </FieldLabel>
+          <div className="space-y-1">
+            <FieldLabel className="font-mono tracking-[0.08em] uppercase">
+              Featured Guide
+            </FieldLabel>
+            <FieldDescription className="text-xs">
+              {targs.length === 0
+                ? "Select at least one Target Guide above first."
+                : "The primary target guide to showcase on the objective card."}
+            </FieldDescription>
+          </div>
 
           <Combobox
+            disabled={targs.length === 0}
             items={targs}
             value={objectiveContData.featured}
             onValueChange={(featured) =>
