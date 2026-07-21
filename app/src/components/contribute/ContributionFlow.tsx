@@ -39,6 +39,7 @@ const createGuideContData = (): GuideContribution => ({
 const createObjectiveContData = (): ObjectiveContribution => ({
   title: "",
   summary: "",
+  subjects: [],
   targets: [
     "arithmetic-introduction",
     "algebra-how-to-express-equations",

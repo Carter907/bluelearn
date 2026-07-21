@@ -14,6 +14,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Combobox } from "@/components/ui/combobox";
 
 import guidesData from "@/data/guides.json";
+import subjectsData from "@/data/subjects.json";
 
 type PropTypes = {
   Stepper: any;
@@ -44,12 +45,14 @@ export const ObjectiveDetails = ({
     return (
       objectiveContData.title.trim() === "" ||
       objectiveContData.summary.trim() === "" ||
+      objectiveContData.subjects.length === 0 ||
       objectiveContData.targets.length === 0 ||
       !objectiveContData.featured
     );
   }, [
     objectiveContData.title,
     objectiveContData.summary,
+    objectiveContData.subjects,
     objectiveContData.targets,
     objectiveContData.featured,
   ]);
@@ -119,6 +122,36 @@ export const ObjectiveDetails = ({
               setObjectiveContData((prev) => ({
                 ...prev,
                 summary: e.target.value,
+              }))
+            }
+          />
+        </Field>
+
+        <Field className="space-y-2">
+          <div className="space-y-1">
+            <FieldLabel
+              required
+              className="font-mono tracking-[0.08em] uppercase"
+            >
+              Subjects
+            </FieldLabel>
+            <FieldDescription className="text-xs">
+              Select one or more subjects this objective belongs to.
+            </FieldDescription>
+          </div>
+
+          <Combobox
+            multiple
+            items={subjectsData.map((s) => ({
+              value: s.slug,
+              label: s.name,
+              description: s.summary,
+            }))}
+            value={objectiveContData.subjects}
+            onValueChange={(subjects) =>
+              setObjectiveContData((prev) => ({
+                ...prev,
+                subjects,
               }))
             }
           />

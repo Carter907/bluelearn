@@ -8,6 +8,7 @@ import type {
 } from "@/types/contributions";
 import { StepperActionHeader } from "@/components/contribute/StepperActionHeader";
 import guidesData from "@/data/guides.json";
+import subjectsData from "@/data/subjects.json";
 
 import {
   Card,
@@ -34,6 +35,11 @@ export const Submit = ({ Stepper, type, objectiveContData }: PropTypes) => {
   const getGuideTitle = (slug: string) => {
     const guide = guidesData.find((g) => g.slug === slug);
     return guide ? guide.title : slug;
+  };
+
+  const getSubjectName = (slug: string) => {
+    const subject = subjectsData.find((s) => s.slug === slug);
+    return subject ? subject.name : slug;
   };
 
   const handleSubmit = async () => {
@@ -73,6 +79,15 @@ export const Submit = ({ Stepper, type, objectiveContData }: PropTypes) => {
                 >
                   {objectiveContData.targets.length} Targets
                 </Badge>
+                {objectiveContData.subjects.map((slug) => (
+                  <Badge
+                    key={slug}
+                    variant="secondary"
+                    className="border border-muted-foreground/20 bg-muted/60 px-3 py-1 font-mono text-xs text-muted-foreground"
+                  >
+                    {getSubjectName(slug)}
+                  </Badge>
+                ))}
                 {objectiveContData.featured && (
                   <Badge
                     variant="outline"

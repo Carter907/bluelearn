@@ -262,12 +262,19 @@ export const OrderObjectiveGuides = ({
     updateSubObjective(targetSlug, newSeq);
   };
 
+  const isNextDisabled =
+    objectiveContData.subObjectives.length < objectiveContData.targets.length;
+
   return (
     <Stepper.Content
       step="objective-ordering"
       className="flex min-h-0 w-full flex-1 flex-col"
     >
-      <StepperActionHeader title={"Order Guides"} Stepper={Stepper} />
+      <StepperActionHeader
+        title={"Order Guides"}
+        Stepper={Stepper}
+        nextDisabled={isNextDisabled}
+      />
 
       <FieldGroup className="mt-0 flex min-h-0 flex-1 flex-col">
         {/* Target Guide Sequence */}

@@ -22,6 +22,7 @@ export type SubObjective = {
 export type ObjectiveContribution = {
   title: string;
   summary: string;
+  subjects: Array<string>;
   targets: Array<string>;
   featured: string;
   subObjectives: Array<SubObjective>;
