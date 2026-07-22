@@ -69,7 +69,7 @@ function PathPage() {
 
         <Separator className="mb-4 bg-border" />
 
-        <ObjectiveFlow targets={targets} />
+        <ObjectiveFlow objective={objective} targets={targets} />
       </section>
     </div>
   );

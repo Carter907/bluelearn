@@ -5,10 +5,11 @@ import { Fragment, useMemo } from "react";
 import { SubObjectiveStep } from "@/components/objective/SubObjectiveStep";
 
 type Props = {
+  objective: any;
   targets: any;
 };
 
-export default function ObjectiveFlow({ targets }: Props) {
+export default function ObjectiveFlow({ objective, targets }: Props) {
   const StepperInstance = useMemo(() => {
     return defineStepper(
       targets.map((target: any) => ({
@@ -21,12 +22,20 @@ export default function ObjectiveFlow({ targets }: Props) {
 
   return (
     <Stepper.Root className="flex min-h-0 w-full flex-1 flex-col gap-8">
-      <Inner Stepper={Stepper} targets={targets} />
+      <Inner Stepper={Stepper} targets={targets} objective={objective} />
     </Stepper.Root>
   );
 }
 
-function Inner({ Stepper, targets }: { Stepper: any; targets: any }) {
+function Inner({
+  Stepper,
+  targets,
+  objective,
+}: {
+  Stepper: any;
+  targets: any;
+  objective: any;
+}) {
   return (
     <div className="flex min-h-0 w-full flex-1 flex-col gap-6">
       {/* breadcrumb stepper */}
@@ -58,6 +67,7 @@ function Inner({ Stepper, targets }: { Stepper: any; targets: any }) {
             key={target.slug}
             Stepper={Stepper}
             target={target}
+            objective={objective}
           />
         ))}
       </div>

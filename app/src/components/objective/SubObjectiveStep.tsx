@@ -1,14 +1,14 @@
 import { GuideCard } from "@/components/cards/GuideCard";
 
 import { Route as GuideRoute } from "@/routes/guides/$slug/index";
-import { Route as GuideWalkthroughRoute } from "@/routes/guides/$slug/walkthrough";
 
 type Props = {
   Stepper: any;
   target: any;
+  objective: any;
 };
 
-export function SubObjectiveStep({ Stepper, target }: Props) {
+export function SubObjectiveStep({ Stepper, target, objective }: Props) {
   return (
     <Stepper.Content step={target.slug}>
       <div className="flex min-h-0 flex-1 flex-col gap-6">
@@ -23,29 +23,6 @@ export function SubObjectiveStep({ Stepper, target }: Props) {
                   data: subobjective.guide.duration,
                 },
               ],
-              actionBtns: (
-                <div className="col-span-2 col-start-3 mt-5 flex items-center justify-around border-t-1 p-4 pt-8 lg:mt-0 lg:border-none lg:pt-4">
-                  <a
-                    href={GuideWalkthroughRoute.to.replace(
-                      "$slug",
-                      subobjective.guide.slug
-                    )}
-                    className="btn-outline"
-                  >
-                    View Walkthrough
-                  </a>
-
-                  <a
-                    href={GuideRoute.to.replace(
-                      "$slug",
-                      subobjective.guide.slug
-                    )}
-                    className="btn-pri"
-                  >
-                    Read
-                  </a>
-                </div>
-              ),
             };
 
             return (
@@ -58,7 +35,15 @@ export function SubObjectiveStep({ Stepper, target }: Props) {
                 </div>
 
                 <div className="w-full min-w-0 flex-1">
-                  <GuideCard guide={guide} />
+                  <GuideCard
+                    guide={guide}
+                    to={GuideRoute.to}
+                    origin={{
+                      type: "subject",
+                      title: objective.title,
+                      path: `/objectives/${objective.slug}`,
+                    }}
+                  />
                 </div>
               </li>
             );
