@@ -82,6 +82,7 @@ export default function Editor({
       linkDialogPlugin(),
       tablePlugin(),
       imagePlugin({
+        disableImageSettingsButton: true,
         imageUploadHandler: (file) =>
           onUploadImageRef.current
             ? onUploadImageRef.current(file)
