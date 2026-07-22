@@ -294,8 +294,11 @@ function Inner({
               )}
 
               <Stepper.Item step={step.id}>
-                <Stepper.Trigger className="rounded-md p-2 font-mono text-[12px] text-muted-foreground uppercase transition-colors hover:bg-muted data-[status=active]:font-bold data-[status=active]:text-brand-blue data-[status=previous]:text-foreground">
-                  <Stepper.Title />
+                <Stepper.Trigger className="mono-micro flex items-center gap-2 rounded-full border border-border bg-background px-2 py-2 text-sm font-medium text-muted-foreground transition-colors hover:border-primary/50 hover:bg-muted data-[status=active]:border-primary data-[status=active]:bg-primary/10 data-[status=active]:text-primary data-[status=active]:ring-1 data-[status=active]:ring-primary/20">
+                  <span className="flex h-5 w-5 items-center justify-center rounded-full bg-primary text-xs text-primary-foreground">
+                    {index + 1}
+                  </span>
+                  <Stepper.Title className="max-w-[20ch] truncate font-bold" />
                 </Stepper.Trigger>
               </Stepper.Item>
             </Fragment>
