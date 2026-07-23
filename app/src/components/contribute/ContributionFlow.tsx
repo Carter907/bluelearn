@@ -53,6 +53,7 @@ const createVariantContData = (): VariantContribution => ({
   summary: "",
   baseGuide: "",
   subjects: [],
+  body: "",
 });
 
 const createObjectiveContData = (): ObjectiveContribution => ({
@@ -192,7 +193,11 @@ function Inner({
 
     return {
       slug: "",
-      title: guideContData.title || "Untitled guide",
+      title: guideContData.title
+        ? guideContData.title
+        : variantContData.title
+          ? variantContData.title
+          : "Untitled guide",
       author: username ?? "You",
       summary: guideContData.summary,
       created_at: formatDate(new Date()),
@@ -355,10 +360,14 @@ function Inner({
 
         <Content
           Stepper={Stepper}
-          body={guideContData.body}
-          onBodyChange={(body) =>
-            setGuideContData((prev) => ({ ...prev, body }))
-          }
+          body={type == "guide" ? guideContData.body : variantContData.body}
+          onBodyChange={(body) => {
+            if (type == "guide") {
+              setGuideContData((prev) => ({ ...prev, body }));
+            } else {
+              setVariantContData((prev) => ({ ...prev, body }));
+            }
+          }}
           onUploadImage={uploadGuideImage}
           onSaveDraft={saveDraft}
           submitting={submitting}
