@@ -76,7 +76,7 @@
   --secondary-foreground: var(--foreground);
 
   --muted: #1c2024;
-  --muted-foreground: #9ba3ab;
+  --muted-foreground: #c3cad1;
 
   --brand-cta: #111827;
 
@@ -89,6 +89,8 @@
   --ring: var(--primary);
 
   --badge-bg: #1a2f38;
+  --badge-border: var(--border);
+  --badge-text: var(--muted-foreground);
 }
 
 /* == BASE STYLES == */
