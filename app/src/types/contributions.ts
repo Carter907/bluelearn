@@ -20,6 +20,7 @@ export type VariantContribution = {
   summary: string;
   baseGuide: string;
   subjects: Array<string>;
+  body: string;
 };
 
 export type SubObjective = {
