@@ -1,46 +1,25 @@
-import { useCallback, useEffect, useRef } from "react";
-import {
-  Background,
-  Controls,
-  MarkerType,
-  ReactFlow,
-  useEdgesState,
-  useNodesState,
-} from "@xyflow/react";
-import { GuideNode } from "./GuideNode";
+import { useEffect } from "react";
+import { MarkerType, useEdgesState, useNodesState } from "@xyflow/react";
 import type { Edge, Node } from "@xyflow/react";
-import "@xyflow/react/dist/style.css";
+import type { WalkthroughNode } from "@/lib/walkthroughUtils";
 
-const nodeTypes = {
-  guideNode: GuideNode,
-};
-
-type WalkthroughNode = {
-  slug: string;
-  title: string;
-  summary: string;
-  level: number;
-};
-
-type GuideGraphProps = {
+type UseGraphLayoutProps = {
   walkthroughNodes: Array<WalkthroughNode>;
-  curatedSequence: Array<string>;
   targetSlug: string;
-  onToggleGuide: (slug: string, isChecked: boolean) => void;
   guidesMap: Map<string, any>;
   hoveredGuide: string | null;
-  onHoverGuide: (slug: string | null) => void;
+  nodeType: string;
+  getNodeData: (node: WalkthroughNode, isTarget: boolean) => any;
 };
 
-export function GuideGraph({
+export function useGraphLayout({
   walkthroughNodes,
-  curatedSequence,
   targetSlug,
-  onToggleGuide,
   guidesMap,
   hoveredGuide,
-  onHoverGuide,
-}: GuideGraphProps) {
+  nodeType,
+  getNodeData,
+}: UseGraphLayoutProps) {
   const [nodes, setNodes, onNodesChange] = useNodesState<Node>([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
 
@@ -71,18 +50,15 @@ export function GuideGraph({
 
       nodesInLevel.forEach((node, nodeIdx) => {
         const isTarget = node.slug === targetSlug;
-        const isChecked = isTarget || curatedSequence.includes(node.slug);
-        const selectedOrder = curatedSequence.indexOf(node.slug);
 
         newNodes.push({
           id: node.slug,
-          type: "guideNode",
+          type: nodeType,
           position: { x: startX + nodeIdx * 250 + 125, y: levelY },
           data: {
+            ...getNodeData(node, isTarget),
             title: node.title,
             isTarget,
-            isChecked,
-            selectedOrder: selectedOrder !== -1 ? selectedOrder + 1 : null,
             isHovered: false,
             isDimmed: false,
           },
@@ -156,14 +132,8 @@ export function GuideGraph({
 
     setNodes(newNodes);
     setEdges(newEdges);
-  }, [
-    walkthroughNodes,
-    curatedSequence,
-    targetSlug,
-    guidesMap,
-    setNodes,
-    setEdges,
-  ]);
+  }, [walkthroughNodes, targetSlug, guidesMap, setNodes, setEdges, nodeType]);
+  // purposely omitted getNodeData from deps to avoid re-running on every render, assuming it's stable or derived
 
   // 2. Hover Update: update isDimmed and isHovered without re-layout
   useEffect(() => {
@@ -249,62 +219,5 @@ export function GuideGraph({
     );
   }, [hoveredGuide, setNodes, setEdges, walkthroughNodes, guidesMap]);
 
-  const onNodeClick = useCallback(
-    (_: any, node: Node) => {
-      if (node.id === targetSlug) return;
-      const isCurrentlyChecked = curatedSequence.includes(node.id);
-      onToggleGuide(node.id, !isCurrentlyChecked);
-    },
-    [curatedSequence, targetSlug, onToggleGuide]
-  );
-
-  const hoverTimeoutRef = useRef<NodeJS.Timeout | undefined>(undefined);
-
-  const handleNodeMouseEnter = useCallback(
-    (_: any, node: Node) => {
-      clearTimeout(hoverTimeoutRef.current);
-      onHoverGuide(node.id);
-    },
-    [onHoverGuide]
-  );
-
-  const handleNodeMouseLeave = useCallback(() => {
-    clearTimeout(hoverTimeoutRef.current);
-    hoverTimeoutRef.current = setTimeout(() => {
-      onHoverGuide(null);
-    }, 50);
-  }, [onHoverGuide]);
-
-  return (
-    <div className="relative h-full w-full">
-      <ReactFlow
-        key={targetSlug}
-        nodes={nodes}
-        edges={edges}
-        onNodesChange={onNodesChange}
-        onEdgesChange={onEdgesChange}
-        onNodeClick={onNodeClick}
-        onNodeMouseEnter={handleNodeMouseEnter}
-        onNodeMouseLeave={handleNodeMouseLeave}
-        nodeTypes={nodeTypes}
-        fitView
-        nodesDraggable={false}
-        nodesConnectable={false}
-        elementsSelectable={false}
-        className="bg-transparent"
-        minZoom={0.2}
-        maxZoom={1.5}
-      >
-        <Background
-          color="hsl(var(--muted-foreground) / 0.2)"
-          gap={24}
-          size={2}
-        />
-        <Controls
-          showInteractive={false}
-          className="overflow-hidden rounded-xl border-border! bg-background! shadow-md! [&>button]:border-b-border! [&>button]:text-foreground! hover:[&>button]:bg-muted!"
-        />
-      </ReactFlow>
-    </div>
-  );
+  return { nodes, edges, onNodesChange, onEdgesChange, setNodes };
 }
