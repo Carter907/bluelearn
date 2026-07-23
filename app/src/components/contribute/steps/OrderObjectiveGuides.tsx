@@ -12,8 +12,9 @@ import {
 } from "lucide-react";
 import type { Dispatch, SetStateAction } from "react";
 import type { ObjectiveContribution } from "@/types/contributions";
+import type { WalkthroughNode } from "@/lib/walkthroughUtils";
 import { GuideGraph } from "@/components/graph-view/GuideGraph";
-import { computeWalkthrough, guidesMap } from "@/lib/walkthroughUtils";
+import { fetchWalkthrough, guidesMap } from "@/lib/walkthroughUtils";
 import { DraggableGuideCard } from "@/components/contribute/DraggableGuideCard";
 import { Badge } from "@/components/ui/badge";
 import { StepperActionHeader } from "@/components/contribute/StepperActionHeader";
@@ -73,9 +74,18 @@ export const OrderObjectiveGuides = ({
     return `${m}m`;
   }, [totalDuration]);
 
-  // Compute walkthrough nodes for the target
-  const walkthroughNodes = useMemo(() => {
-    return targetSlug ? computeWalkthrough(targetSlug) : [];
+  const [walkthroughNodes, setWalkthroughNodes] = useState<
+    Array<WalkthroughNode>
+  >([]);
+
+  useEffect(() => {
+    if (targetSlug) {
+      fetchWalkthrough(targetSlug)
+        .then(setWalkthroughNodes)
+        .catch(console.error);
+    } else {
+      setWalkthroughNodes([]);
+    }
   }, [targetSlug]);
 
   const updateSubObjective = (slug: string, newSeq: Array<string>) => {
@@ -124,31 +134,34 @@ export const OrderObjectiveGuides = ({
     if (existingSub) {
       setCuratedSequence(existingSub.curatedSequence);
     } else {
-      const nodes = computeWalkthrough(targetSlug);
-      // Seed with all prerequisites (excluding the target guide itself) sorted by levels
-      const initialPrereqs = nodes
-        .filter((n) => n.slug !== targetSlug)
-        .sort((a, b) => a.level - b.level)
-        .map((n) => n.slug);
+      fetchWalkthrough(targetSlug)
+        .then((nodes) => {
+          // Seed with all prerequisites (excluding the target guide itself) sorted by levels
+          const initialPrereqs = nodes
+            .filter((n) => n.slug !== targetSlug)
+            .sort((a, b) => a.level - b.level)
+            .map((n) => n.slug);
 
-      setCuratedSequence(initialPrereqs);
+          setCuratedSequence(initialPrereqs);
 
-      setObjectiveContData((prev) => {
-        if (prev.subObjectives.some((s) => s.targetSlug === targetSlug)) {
-          return prev;
-        }
-        return {
-          ...prev,
-          subObjectives: [
-            ...prev.subObjectives,
-            {
-              targetSlug,
-              selectedSlugs: initialPrereqs,
-              curatedSequence: initialPrereqs,
-            },
-          ],
-        };
-      });
+          setObjectiveContData((prev) => {
+            if (prev.subObjectives.some((s) => s.targetSlug === targetSlug)) {
+              return prev;
+            }
+            return {
+              ...prev,
+              subObjectives: [
+                ...prev.subObjectives,
+                {
+                  targetSlug,
+                  selectedSlugs: initialPrereqs,
+                  curatedSequence: initialPrereqs,
+                },
+              ],
+            };
+          });
+        })
+        .catch(console.error);
     }
   }, [targetSlug]);
 

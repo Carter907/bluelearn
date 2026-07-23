@@ -1,13 +1,14 @@
-import { useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, createFileRoute, notFound } from "@tanstack/react-router";
 
+import type { WalkthroughNode } from "@/lib/walkthroughUtils";
 import { Separator } from "@/components/ui/separator";
 
 import { Route as GuideRoute } from "@/routes/guides/$slug/index";
 
 import { getGuideBySlug } from "@/lib/getData";
 import { WalkthroughGraph } from "@/components/graph-view/WalkthroughGraph";
-import { computeWalkthrough, guidesMap } from "@/lib/walkthroughUtils";
+import { fetchWalkthrough, guidesMap } from "@/lib/walkthroughUtils";
 
 import guides from "@/data/guides.json";
 
@@ -21,8 +22,12 @@ function RouteComponent() {
   const guide = getGuideBySlug(guides, slug);
   const [hoveredGuide, setHoveredGuide] = useState<string | null>(null);
 
-  const walkthroughNodes = useMemo(() => {
-    return computeWalkthrough(slug);
+  const [walkthroughNodes, setWalkthroughNodes] = useState<
+    Array<WalkthroughNode>
+  >([]);
+
+  useEffect(() => {
+    fetchWalkthrough(slug).then(setWalkthroughNodes).catch(console.error);
   }, [slug]);
 
   if (!guide) {
