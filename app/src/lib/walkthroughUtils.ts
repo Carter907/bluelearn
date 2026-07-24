@@ -34,3 +34,18 @@ export const fetchWalkthrough = async (
   const data = await res.json();
   return data;
 };
+
+export const fetchObjectiveGraph = async (
+  targetSlug: string
+): Promise<WalkthroughData> => {
+  const res = await client.objectives[":slug"].graph.$get({
+    param: { slug: targetSlug },
+  });
+
+  if (!res.ok) {
+    throw new Error("Failed to fetch objective graph");
+  }
+
+  const data = await res.json();
+  return data as unknown as WalkthroughData;
+};

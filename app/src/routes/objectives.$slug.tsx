@@ -1,4 +1,4 @@
-import { createFileRoute, notFound } from "@tanstack/react-router";
+import { Link, createFileRoute, notFound } from "@tanstack/react-router";
 
 import type { HydratedObjective } from "@/types/objectives";
 
@@ -62,8 +62,10 @@ function PathPage() {
             {formatDuration(objective.duration)} total)
           </h1>
 
-          <Button variant="outline" className="btn-sec" size="lg">
-            See Graph View
+          <Button variant="outline" className="btn-sec" size="lg" asChild>
+            <Link to="/objectives/$slug/graph" params={{ slug }}>
+              See Graph View
+            </Link>
           </Button>
         </div>
 
