@@ -9,6 +9,7 @@ import type {
   ContributionType,
   GuideContribution,
   ObjectiveContribution,
+  VariantContribution,
 } from "@/types/contributions";
 import type { GuideType, HydratedGuide } from "@/types/guides";
 import { createGuide, listGuides } from "@/lib/api/guides";
@@ -46,6 +47,15 @@ const createGuideContData = (): GuideContribution => ({
   todoPrereqs: [],
 });
 
+const createVariantContData = (): VariantContribution => ({
+  type: "",
+  title: "",
+  summary: "",
+  baseGuide: "",
+  subjects: [],
+  body: "",
+});
+
 const createObjectiveContData = (): ObjectiveContribution => ({
   title: "",
   summary: "",
@@ -58,6 +68,9 @@ const createObjectiveContData = (): ObjectiveContribution => ({
 export default function ContributionFlow({ type, setType }: PropTypes) {
   const [guideContData, setGuideContData] =
     useState<GuideContribution>(createGuideContData);
+  const [variantContData, setVariantContData] = useState<VariantContribution>(
+    createVariantContData
+  );
   const [objectiveContData, setObjectiveContData] =
     useState<ObjectiveContribution>(createObjectiveContData);
 
@@ -107,6 +120,8 @@ export default function ContributionFlow({ type, setType }: PropTypes) {
           setType={setType}
           guideContData={guideContData}
           setGuideContData={setGuideContData}
+          variantContData={variantContData}
+          setVariantContData={setVariantContData}
           objectiveContData={objectiveContData}
           setObjectiveContData={setObjectiveContData}
         />
@@ -122,6 +137,8 @@ function Inner({
   setType,
   guideContData,
   setGuideContData,
+  variantContData,
+  setVariantContData,
   objectiveContData,
   setObjectiveContData,
 }: {
@@ -132,6 +149,8 @@ function Inner({
 
   guideContData: GuideContribution;
   setGuideContData: Dispatch<SetStateAction<GuideContribution>>;
+  variantContData: VariantContribution;
+  setVariantContData: Dispatch<SetStateAction<VariantContribution>>;
 
   objectiveContData: ObjectiveContribution;
   setObjectiveContData: Dispatch<SetStateAction<ObjectiveContribution>>;
@@ -223,7 +242,11 @@ function Inner({
 
     return {
       slug: "",
-      title: guideContData.title || "Untitled guide",
+      title: guideContData.title
+        ? guideContData.title
+        : variantContData.title
+          ? variantContData.title
+          : "Untitled guide",
       author: username ?? "You",
       summary: guideContData.summary,
       created_at: formatDate(new Date()),
@@ -366,6 +389,8 @@ function Inner({
 
         <VariantDetails
           Stepper={Stepper}
+          variantContData={variantContData}
+          setVariantContData={setVariantContData}
           onSaveDraft={saveDraft}
           submitting={submitting}
         />
@@ -384,10 +409,14 @@ function Inner({
 
         <Content
           Stepper={Stepper}
-          body={guideContData.body}
-          onBodyChange={(body) =>
-            setGuideContData((prev) => ({ ...prev, body }))
-          }
+          body={type == "guide" ? guideContData.body : variantContData.body}
+          onBodyChange={(body) => {
+            if (type == "guide") {
+              setGuideContData((prev) => ({ ...prev, body }));
+            } else {
+              setVariantContData((prev) => ({ ...prev, body }));
+            }
+          }}
           onUploadImage={uploadGuideImage}
           onSaveDraft={saveDraft}
           submitting={submitting}
