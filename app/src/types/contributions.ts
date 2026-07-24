@@ -4,6 +4,7 @@ export type GuideContribution = {
   type: string;
   title: string;
   summary: string;
+  body: string;
   subjects: Array<string>;
   newSubjects: Array<{
     name: string;
@@ -11,6 +12,15 @@ export type GuideContribution = {
   }>;
   prereqs: Array<string>;
   todoPrereqs: Array<string>;
+};
+
+export type VariantContribution = {
+  type: string;
+  title: string;
+  summary: string;
+  baseGuide: string;
+  subjects: Array<string>;
+  body: string;
 };
 
 export type SubObjective = {
