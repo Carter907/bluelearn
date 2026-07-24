@@ -4,7 +4,7 @@ import { useNavigate } from "@tanstack/react-router";
 import { WalkthroughNode as WalkthroughNodeComponent } from "./WalkthroughNode";
 import { useGraphLayout } from "./useGraphLayout";
 import type { Node } from "@xyflow/react";
-import type { WalkthroughNode } from "@/lib/walkthroughUtils";
+import type { WalkthroughData, WalkthroughNode } from "@/lib/walkthroughUtils";
 import "@xyflow/react/dist/style.css";
 
 const nodeTypes = {
@@ -12,30 +12,32 @@ const nodeTypes = {
 };
 
 type WalkthroughGraphProps = {
-  walkthroughNodes: Array<WalkthroughNode>;
+  walkthroughData: WalkthroughData;
   targetSlug: string;
-  guidesMap: Map<string, any>;
   hoveredGuide: string | null;
   onHoverGuide: (slug: string | null) => void;
 };
 
 export function WalkthroughGraph({
-  walkthroughNodes,
+  walkthroughData,
   targetSlug,
-  guidesMap,
   hoveredGuide,
   onHoverGuide,
 }: WalkthroughGraphProps) {
   const navigate = useNavigate();
 
-  const getNodeData = useCallback(() => {
-    return {};
+  const getNodeData = useCallback((node: WalkthroughNode) => {
+    return {
+      summary: node.summary,
+      level: node.level,
+      duration: Math.max(1, Math.ceil(node.word_count / 225)),
+      tags: node.tags,
+    };
   }, []);
 
   const { nodes, edges, onNodesChange, onEdgesChange } = useGraphLayout({
-    walkthroughNodes,
+    walkthroughData,
     targetSlug,
-    guidesMap,
     hoveredGuide,
     nodeType: "walkthroughNode",
     getNodeData,

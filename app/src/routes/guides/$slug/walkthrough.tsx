@@ -1,14 +1,14 @@
 import { useEffect, useState } from "react";
 import { Link, createFileRoute, notFound } from "@tanstack/react-router";
 
-import type { WalkthroughNode } from "@/lib/walkthroughUtils";
+import type { WalkthroughData } from "@/lib/walkthroughUtils";
 import { Separator } from "@/components/ui/separator";
 
 import { Route as GuideRoute } from "@/routes/guides/$slug/index";
 
 import { getGuideBySlug } from "@/lib/getData";
 import { WalkthroughGraph } from "@/components/graph-view/WalkthroughGraph";
-import { fetchWalkthrough, guidesMap } from "@/lib/walkthroughUtils";
+import { fetchWalkthrough } from "@/lib/walkthroughUtils";
 
 import guides from "@/data/guides.json";
 
@@ -22,12 +22,11 @@ function RouteComponent() {
   const guide = getGuideBySlug(guides, slug);
   const [hoveredGuide, setHoveredGuide] = useState<string | null>(null);
 
-  const [walkthroughNodes, setWalkthroughNodes] = useState<
-    Array<WalkthroughNode>
-  >([]);
+  const [walkthroughData, setWalkthroughData] =
+    useState<WalkthroughData | null>(null);
 
   useEffect(() => {
-    fetchWalkthrough(slug).then(setWalkthroughNodes).catch(console.error);
+    fetchWalkthrough(slug).then(setWalkthroughData).catch(console.error);
   }, [slug]);
 
   if (!guide) {
@@ -58,13 +57,14 @@ function RouteComponent() {
 
         {/* Graph */}
         <div className="min-h-[600px] w-full flex-1 overflow-hidden rounded-xl border border-border bg-muted/10">
-          <WalkthroughGraph
-            walkthroughNodes={walkthroughNodes}
-            targetSlug={slug}
-            guidesMap={guidesMap}
-            hoveredGuide={hoveredGuide}
-            onHoverGuide={setHoveredGuide}
-          />
+          {walkthroughData && (
+            <WalkthroughGraph
+              walkthroughData={walkthroughData}
+              targetSlug={slug}
+              hoveredGuide={hoveredGuide}
+              onHoverGuide={setHoveredGuide}
+            />
+          )}
         </div>
       </section>
     </div>

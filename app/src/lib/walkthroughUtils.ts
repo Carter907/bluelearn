@@ -1,20 +1,28 @@
 import { client } from "@/lib/api/apiClient";
-import guidesData from "@/data/guides.json";
 
 export type WalkthroughNode = {
-  id?: string;
+  id: string;
   slug: string;
   title: string;
-  summary: string;
-  level: number; // mapped from depth
+  summary: string | null;
+  level: number;
+  word_count: number;
+  tags: Array<{ slug: string; name: string }>;
 };
 
-// Map for O(1) guide lookup (used for mocking in UI components)
-export const guidesMap = new Map(guidesData.map((g) => [g.slug, g]));
+export type WalkthroughEdge = {
+  from_id: string;
+  to_id: string;
+};
+
+export type WalkthroughData = {
+  nodes: Array<WalkthroughNode>;
+  edges: Array<WalkthroughEdge>;
+};
 
 export const fetchWalkthrough = async (
   targetSlug: string
-): Promise<Array<WalkthroughNode>> => {
+): Promise<WalkthroughData> => {
   const res = await client.guides[":slug"].walkthrough.$get({
     param: { slug: targetSlug },
   });
@@ -24,12 +32,5 @@ export const fetchWalkthrough = async (
   }
 
   const data = await res.json();
-
-  return data.nodes.map((node: any) => ({
-    id: node.id,
-    slug: node.slug,
-    title: node.title,
-    summary: node.summary,
-    level: node.depth,
-  }));
+  return data;
 };

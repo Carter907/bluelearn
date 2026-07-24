@@ -7,7 +7,7 @@ export function CurationNode({ data }: { data: any }) {
 
   return (
     <div
-      className={`relative flex min-w-[200px] flex-col gap-2 rounded-xl border-2 bg-card p-3 transition-all duration-150 select-none ${
+      className={`relative flex max-w-[350px] min-w-[300px] flex-col gap-2 rounded-xl border-2 bg-card p-3 transition-all duration-150 select-none ${
         isHovered
           ? "z-10 scale-105 border-primary shadow-md ring-4 ring-primary/40"
           : ""

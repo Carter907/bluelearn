@@ -1,19 +1,25 @@
 import { Handle, Position } from "@xyflow/react";
+import { Clock, Network } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
 
 export function WalkthroughNode({ data }: { data: any }) {
-  const { isTarget, title, isHovered, isDimmed } = data;
+  const {
+    isTarget,
+    title,
+    summary,
+    duration,
+    tags,
+    level,
+    isHovered,
+    isDimmed,
+  } = data;
 
   return (
     <div
-      className={`relative flex min-w-[200px] flex-col gap-2 rounded-xl border-2 bg-card p-3 transition-all duration-150 select-none ${
-        isHovered
-          ? "z-10 scale-105 border-primary shadow-md ring-4 ring-primary/40"
-          : ""
-      } ${isDimmed ? "opacity-30" : ""} ${
-        isTarget
-          ? "cursor-default border-primary shadow-sm"
-          : "cursor-pointer border-border shadow-sm hover:border-primary/50"
-      }`}
+      className={`relative max-w-[420px] min-w-[380px] transition-all duration-150 select-none ${
+        isHovered ? "z-10 scale-[1.02]" : ""
+      } ${isDimmed ? "opacity-30" : ""}`}
     >
       <Handle
         type="source"
@@ -21,18 +27,72 @@ export function WalkthroughNode({ data }: { data: any }) {
         className="-top-1 h-2 w-8 rounded-full !border-none !bg-primary/40"
       />
 
-      <div className="flex items-center gap-3">
-        <div className="min-w-0 flex-1">
-          <h4 className="flex flex-col gap-1 text-sm font-semibold text-foreground">
-            {title}
+      <Card
+        className={`group rounded-md bg-background shadow-none transition-colors hover:bg-muted ${
+          isHovered ? "border-primary ring-2 ring-primary/20" : "border-border"
+        } ${isTarget ? "border-primary/50 shadow-sm" : ""}`}
+      >
+        {/* Header */}
+        <CardHeader className="relative p-3">
+          <div className="mb-1.5 flex items-center justify-between">
+            <p className="font-mono text-[10px] tracking-wide text-muted-foreground uppercase">
+              Guide
+            </p>
             {isTarget && (
-              <span className="self-start rounded bg-primary/20 px-1.5 py-0.5 font-mono text-[10px] font-bold tracking-wider text-primary uppercase">
+              <Badge
+                variant="outline"
+                className="mono-micro rounded-full border border-badge-border bg-badge tracking-[0.08em] text-badge-foreground"
+              >
                 Target
-              </span>
+              </Badge>
             )}
-          </h4>
-        </div>
-      </div>
+          </div>
+
+          <h3 className="line-clamp-2 text-base font-semibold tracking-tight">
+            {title}
+          </h3>
+
+          <div className="flex items-center gap-3 pt-1.5 text-xs">
+            {duration !== undefined && (
+              <div className="flex items-center gap-1 text-muted-foreground">
+                <Clock className="h-3 w-3" />
+                {duration} min
+              </div>
+            )}
+            {level !== undefined && (
+              <div className="flex items-center gap-1 text-muted-foreground">
+                <Network className="h-3 w-3" />
+                Level {level}
+              </div>
+            )}
+          </div>
+        </CardHeader>
+
+        {/* Metadata */}
+        {(summary || (tags && tags.length > 0)) && (
+          <CardContent className="border-t p-3">
+            {summary && (
+              <p className="line-clamp-2 text-xs text-muted-foreground">
+                {summary}
+              </p>
+            )}
+
+            {tags && tags.length > 0 && (
+              <div className="flex flex-wrap gap-1.5 pt-2">
+                {tags.map((tag: any) => (
+                  <Badge
+                    key={typeof tag === "string" ? tag : tag.slug}
+                    variant="outline"
+                    className="mono-micro rounded-full border border-badge-border bg-badge tracking-[0.08em] text-badge-foreground"
+                  >
+                    {typeof tag === "string" ? tag : tag.name || tag.slug}
+                  </Badge>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        )}
+      </Card>
 
       <Handle
         type="target"
