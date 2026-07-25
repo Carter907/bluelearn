@@ -5,6 +5,9 @@
     summary: List published guides
     description: Published guide bases, alphabetical.
     operationId: listGuides
+    parameters:
+      - $ref: "../components/parameters/pagination.yaml#/Page"
+      - $ref: "../components/parameters/pagination.yaml#/Limit"
     responses:
       "200":
         description: Published guides
@@ -18,7 +21,10 @@
                   type: array
                   items:
                     $ref: "../components/schemas/guides/GuideListItem.yaml"
-              required: [guides]
+                total:
+                  type: integer
+                  minimum: 0
+              required: [guides, total]
   post:
     tags: [guides]
     summary: Create a guide
@@ -162,6 +168,9 @@
     summary: List variants under a guide
     description: The methods (practice guide) or alternatives (theory guide) under this guide.
     operationId: listGuideVariants
+    parameters:
+      - $ref: "../components/parameters/pagination.yaml#/Page"
+      - $ref: "../components/parameters/pagination.yaml#/Limit"
     responses:
       "200":
         description: Variants under the guide
@@ -175,7 +184,10 @@
                   type: array
                   items:
                     $ref: "../components/schemas/variants/VariantListItem.yaml"
-              required: [variants]
+                total:
+                  type: integer
+                  minimum: 0
+              required: [variants, total]
       "404":
         $ref: "../components/responses/_shared.yaml#/NotFound"
   post:

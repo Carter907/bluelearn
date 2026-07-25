@@ -131,7 +131,7 @@ function LevelsGraph({
 export const ObjectiveCard = ({ objective, to }: PropTypes) => {
   return (
     <Link to={to} params={{ slug: objective.slug }}>
-      <Card className="group flex flex-col justify-between rounded-md bg-background shadow-none transition-colors hover:bg-muted">
+      <Card className="group flex h-full flex-col justify-between rounded-md bg-background shadow-none transition-colors hover:bg-muted">
         {/* Header */}
         <CardHeader className="relative p-4">
           <div className="flex items-center justify-between">
@@ -140,7 +140,7 @@ export const ObjectiveCard = ({ objective, to }: PropTypes) => {
             </p>
             {objective.status && (
               <Badge
-                variant="outline"
+                variant="default"
                 className="mono-micro rounded-full border border-badge-border bg-badge tracking-[0.08em] text-badge-foreground"
               >
                 {objective.status}
@@ -157,7 +157,7 @@ export const ObjectiveCard = ({ objective, to }: PropTypes) => {
           </p>
 
           <div className="flex items-center justify-between">
-            <p className="font-mono text-[11px] tracking-[0.08em] text-muted-foreground uppercase">
+            <p className="mono-micro text-muted-foreground">
               @{objective.curator} | {objective.created_at}
             </p>
           </div>

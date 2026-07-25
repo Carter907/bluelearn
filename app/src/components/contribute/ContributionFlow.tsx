@@ -9,6 +9,7 @@ import type {
   ContributionType,
   GuideContribution,
   ObjectiveContribution,
+  VariantContribution,
 } from "@/types/contributions";
 import type { GuideType, HydratedGuide } from "@/types/guides";
 import { createGuide, listGuides } from "@/lib/api/guides";
@@ -23,11 +24,12 @@ import { GuideDetails } from "@/components/contribute/steps/GuideDetails";
 import { VariantDetails } from "@/components/contribute/steps/VariantDetails";
 import { Content } from "@/components/contribute/steps/Content";
 import { ObjectiveDetails } from "@/components/contribute/steps/ObjectiveDetails";
-import { Submit } from "@/components/contribute/steps/Submit";
+import { PreviewGuide } from "@/components/contribute/steps/PreviewGuide";
 import { OrderObjectiveGuides } from "@/components/contribute/steps/OrderObjectiveGuides";
 import { OrderTargetGuides } from "@/components/contribute/steps/OrderTargetGuides";
 
 import { flows, typeStep } from "@/lib/contributionFlow";
+import { PreviewObjective } from "@/components/contribute/steps/PreviewObjective";
 
 type PropTypes = {
   type: ContributionType | null;
@@ -45,16 +47,19 @@ const createGuideContData = (): GuideContribution => ({
   todoPrereqs: [],
 });
 
+const createVariantContData = (): VariantContribution => ({
+  type: "",
+  title: "",
+  summary: "",
+  baseGuide: "",
+  subjects: [],
+  body: "",
+});
+
 const createObjectiveContData = (): ObjectiveContribution => ({
   title: "",
   summary: "",
-  targets: [
-    "arithmetic-introduction",
-    "algebra-how-to-express-equations",
-    "calculus-introduction",
-    "vectors-introduction",
-    "mechanics-how-to-apply-newtons-laws",
-  ],
+  targets: [],
   featured: "",
   subObjectives: [],
 });
@@ -62,6 +67,9 @@ const createObjectiveContData = (): ObjectiveContribution => ({
 export default function ContributionFlow({ type, setType }: PropTypes) {
   const [guideContData, setGuideContData] =
     useState<GuideContribution>(createGuideContData);
+  const [variantContData, setVariantContData] = useState<VariantContribution>(
+    createVariantContData
+  );
   const [objectiveContData, setObjectiveContData] =
     useState<ObjectiveContribution>(createObjectiveContData);
 
@@ -85,6 +93,8 @@ export default function ContributionFlow({ type, setType }: PropTypes) {
           setType={setType}
           guideContData={guideContData}
           setGuideContData={setGuideContData}
+          variantContData={variantContData}
+          setVariantContData={setVariantContData}
           objectiveContData={objectiveContData}
           setObjectiveContData={setObjectiveContData}
         />
@@ -100,6 +110,8 @@ function Inner({
   setType,
   guideContData,
   setGuideContData,
+  variantContData,
+  setVariantContData,
   objectiveContData,
   setObjectiveContData,
 }: {
@@ -110,6 +122,8 @@ function Inner({
 
   guideContData: GuideContribution;
   setGuideContData: Dispatch<SetStateAction<GuideContribution>>;
+  variantContData: VariantContribution;
+  setVariantContData: Dispatch<SetStateAction<VariantContribution>>;
 
   objectiveContData: ObjectiveContribution;
   setObjectiveContData: Dispatch<SetStateAction<ObjectiveContribution>>;
@@ -179,7 +193,11 @@ function Inner({
 
     return {
       slug: "",
-      title: guideContData.title || "Untitled guide",
+      title: guideContData.title
+        ? guideContData.title
+        : variantContData.title
+          ? variantContData.title
+          : "Untitled guide",
       author: username ?? "You",
       summary: guideContData.summary,
       created_at: formatDate(new Date()),
@@ -294,8 +312,11 @@ function Inner({
               )}
 
               <Stepper.Item step={step.id}>
-                <Stepper.Trigger className="rounded-md p-2 font-mono text-[12px] text-muted-foreground uppercase transition-colors hover:bg-muted data-[status=active]:font-bold data-[status=active]:text-brand-blue data-[status=previous]:text-foreground">
-                  <Stepper.Title />
+                <Stepper.Trigger className="mono-micro flex items-center gap-2 rounded-full border border-border bg-background px-2 py-2 text-sm text-muted-foreground transition-colors hover:border-primary/50 hover:bg-muted data-[status=active]:border-primary data-[status=active]:bg-primary/10 data-[status=active]:text-primary data-[status=active]:ring-1 data-[status=active]:ring-primary/20">
+                  <span className="flex h-5 w-5 items-center justify-center rounded-full bg-primary text-xs text-primary-foreground">
+                    {index + 1}
+                  </span>
+                  <Stepper.Title className="max-w-[20ch] truncate font-bold" />
                 </Stepper.Trigger>
               </Stepper.Item>
             </Fragment>
@@ -319,6 +340,8 @@ function Inner({
 
         <VariantDetails
           Stepper={Stepper}
+          variantContData={variantContData}
+          setVariantContData={setVariantContData}
           onSaveDraft={saveDraft}
           submitting={submitting}
         />
@@ -337,10 +360,14 @@ function Inner({
 
         <Content
           Stepper={Stepper}
-          body={guideContData.body}
-          onBodyChange={(body) =>
-            setGuideContData((prev) => ({ ...prev, body }))
-          }
+          body={type == "guide" ? guideContData.body : variantContData.body}
+          onBodyChange={(body) => {
+            if (type == "guide") {
+              setGuideContData((prev) => ({ ...prev, body }));
+            } else {
+              setVariantContData((prev) => ({ ...prev, body }));
+            }
+          }}
           onUploadImage={uploadGuideImage}
           onSaveDraft={saveDraft}
           submitting={submitting}
@@ -351,11 +378,16 @@ function Inner({
           setObjectiveContData={setObjectiveContData}
         />
 
-        <Submit
+        <PreviewGuide
           Stepper={Stepper}
           guide={previewGuide}
           guideType={guideType}
           onSaveDraft={saveDraft}
+          onPublish={publish}
+          submitting={submitting}
+        />
+        <PreviewObjective
+          Stepper={Stepper}
           onPublish={publish}
           submitting={submitting}
         />

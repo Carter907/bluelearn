@@ -78,18 +78,35 @@ export async function makeUser(): Promise<{ token: string; userId: string }> {
   return { token: session.session.access_token, userId: created.user.id };
 }
 
-// Shorthand for the Authorization header bundle most requests need.
-export function auth(token: string) {
-  return { headers: { Authorization: `Bearer ${token}` } };
+export function clientIp(): string {
+  const octet = () => Math.floor(Math.random() * 256);
+  return `${octet()}.${octet()}.${octet()}.${octet()}`;
+}
+
+// Shorthand for the Authorization header bundle most requests need. Pass an
+// ip to pin the request to its own rate-limit bucket.
+export function auth(token: string, ip?: string) {
+  return {
+    headers: {
+      Authorization: `Bearer ${token}`,
+      ...(ip ? { "CF-Connecting-IP": ip } : {}),
+    },
+  };
 }
 
 // Shorthand for an authorized JSON request init.
-export function jsonAuth(token: string, method: string, body: unknown) {
+export function jsonAuth(
+  token: string,
+  method: string,
+  body: unknown,
+  ip?: string
+) {
   return {
     method,
     headers: {
       Authorization: `Bearer ${token}`,
       "Content-Type": "application/json",
+      ...(ip ? { "CF-Connecting-IP": ip } : {}),
     },
     body: JSON.stringify(body),
   };

@@ -4,6 +4,9 @@
     tags: [subjects]
     summary: List all subjects
     operationId: listSubjects
+    parameters:
+      - $ref: "../components/parameters/pagination.yaml#/Page"
+      - $ref: "../components/parameters/pagination.yaml#/Limit"
     responses:
       "200":
         description: All subjects
@@ -17,7 +20,10 @@
                   type: array
                   items:
                     $ref: "../components/schemas/subjects/SubjectListItem.yaml"
-              required: [subjects]
+                total:
+                  type: integer
+                  minimum: 0
+              required: [subjects, total]
 
 /subjects/{slug}:
   parameters:
@@ -60,6 +66,9 @@
     summary: List guides tagged with this subject
     description: Alphabetical list of guides carrying this subject tag.
     operationId: listSubjectGuides
+    parameters:
+      - $ref: "../components/parameters/pagination.yaml#/Page"
+      - $ref: "../components/parameters/pagination.yaml#/Limit"
     responses:
       "200":
         description: Tagged guides
@@ -73,7 +82,10 @@
                   type: array
                   items:
                     $ref: "../components/schemas/guides/GuideListItem.yaml"
-              required: [guides]
+                total:
+                  type: integer
+                  minimum: 0
+              required: [guides, total]
       "404":
         $ref: "../components/responses/_shared.yaml#/NotFound"
 
@@ -90,6 +102,9 @@
     summary: List objectives tagged with this subject
     description: Alphabetical list of published objectives carrying this subject tag.
     operationId: listSubjectObjectives
+    parameters:
+      - $ref: "../components/parameters/pagination.yaml#/Page"
+      - $ref: "../components/parameters/pagination.yaml#/Limit"
     responses:
       "200":
         description: Tagged objectives
@@ -103,6 +118,9 @@
                   type: array
                   items:
                     $ref: "../components/schemas/objectives/ObjectiveListItem.yaml"
-              required: [objectives]
+                total:
+                  type: integer
+                  minimum: 0
+              required: [objectives, total]
       "404":
         $ref: "../components/responses/_shared.yaml#/NotFound"

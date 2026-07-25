@@ -1,5 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import type { DecisionReason } from "@bluelearn/schemas";
+import type { DecisionReason, Pagination } from "@bluelearn/schemas";
 import type { Database } from "../database.types";
 import { ServiceError } from "../lib/service-error";
 import { PANEL_POLICY_DEFAULTS } from "../lib/review-policy";
@@ -105,7 +105,11 @@ type CaseDetailRow = {
 
 // ---- Exports ----
 
-export async function getReviewQueue(supabase: DB, userId: string) {
+export async function getReviewQueue(
+  supabase: DB,
+  userId: string,
+  { page, limit }: Pagination = { page: 1, limit: 20 }
+) {
   const { data: raw, error } = await supabase
     .from("panel_members")
     .select(
@@ -152,7 +156,7 @@ export async function getReviewQueue(supabase: DB, userId: string) {
     guideLinks = (links ?? []) as unknown as GuideLinkRow[];
   }
 
-  return open
+  const all = open
     .map((m) => {
       const rc = m.review_panels.review_cases;
       const link = guideLinks.find((l) => l.case_id === rc.id);
@@ -171,6 +175,10 @@ export async function getReviewQueue(supabase: DB, userId: string) {
         Number(a.decision !== null) - Number(b.decision !== null) ||
         b.created_at.localeCompare(a.created_at)
     );
+
+  const from = (page - 1) * limit;
+  const to = from + limit;
+  return { data: all.slice(from, to), total: all.length };
 }
 
 export async function listReviewCases(supabase: DB) {
