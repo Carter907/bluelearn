@@ -1,6 +1,8 @@
 import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
 import { requireUser } from "../middleware/auth.middleware";
+import { rateLimitMiddleware } from "../middleware/rate-limit.middleware";
+import { HEAVY } from "../middleware/rateLimits";
 import type { HonoEnv } from "../types";
 import { mediaUploadSchema } from "@bluelearn/schemas";
 
@@ -12,6 +14,7 @@ export const mediaRouter = new Hono<HonoEnv>()
   .post(
     "/upload",
     requireUser,
+    rateLimitMiddleware({ ...HEAVY, bucket: "media-upload" }),
     zValidator("form", mediaUploadSchema),
     async (c) => {
       const { file, revision_id } = c.req.valid("form");

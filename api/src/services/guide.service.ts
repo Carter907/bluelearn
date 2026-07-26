@@ -3,6 +3,7 @@ import type {
   CreateGuideInput,
   CreateVariantInput,
   GuideListItem,
+  Pagination,
   SubjectReference,
 } from "@bluelearn/schemas";
 import type { Database } from "../database.types";
@@ -157,9 +158,13 @@ export async function buildGuideListItems(
 // List published guides as cards, alphabetical. RLS hides drafts from
 // non-authors.
 export async function listPublishedGuides(
-  supabase: DB
-): Promise<GuideListItem[]> {
-  const { data, error } = await supabase
+  supabase: DB,
+  { page, limit }: Pagination = { page: 1, limit: 20 }
+): Promise<{ data: GuideListItem[]; total: number }> {
+  const from = (page - 1) * limit;
+  const to = from + limit - 1;
+
+  const { data, count, error } = await supabase
     .from("guide_bases")
     .select(
       `id, slug, title, knowledge_type, status, created_at,
@@ -168,17 +173,22 @@ export async function listPublishedGuides(
          current:guide_revisions!guides_current_revision_id_fkey!inner(
            id, summary, word_count
          )
-       )`
+       )`,
+      { count: "exact" }
     )
     .eq("status", "published")
-    .order("title");
+    .order("title")
+    .range(from, to);
 
   if (error) {
     console.error(error);
     throw new ServiceError("Failed to load guides", 500);
   }
 
-  return buildGuideListItems(supabase, data ?? []);
+  return {
+    data: await buildGuideListItems(supabase, data ?? []),
+    total: count ?? 0,
+  };
 }
 
 // Create a guide: the create_guide RPC bundles the guide_base + first guide +
@@ -288,7 +298,11 @@ export async function getWalkthrough(supabase: DB, rawSlug: string) {
 
 // List the published variants (methods/alternatives) under a guide, ranked
 // by Wilson score lower bound
-export async function listGuideVariants(supabase: DB, rawSlug: string) {
+export async function listGuideVariants(
+  supabase: DB,
+  rawSlug: string,
+  { page, limit }: Pagination = { page: 1, limit: 20 }
+) {
   const baseId = await resolveBaseId(supabase, rawSlug);
 
   const { data, error } = await supabase.rpc("list_guide_variants_by_score", {
@@ -300,7 +314,13 @@ export async function listGuideVariants(supabase: DB, rawSlug: string) {
     throw new ServiceError("Failed to load variants", 500);
   }
 
-  return data ?? [];
+  const all = data ?? [];
+  const from = (page - 1) * limit;
+  const to = from + limit;
+  return {
+    data: all.slice(from, to),
+    total: all.length,
+  };
 }
 
 // Add a variant under a guide: a draft guide + first revision via the

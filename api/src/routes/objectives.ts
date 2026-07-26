@@ -1,9 +1,12 @@
 import { Hono } from "hono";
 import { requireUser } from "../middleware/auth.middleware";
+import { rateLimitMiddleware } from "../middleware/rate-limit.middleware";
+import { CONTRIBUTION, CREATE } from "../middleware/rateLimits";
 import type { HonoEnv } from "../types";
 import { zValidator } from "@hono/zod-validator";
 import {
   createObjectiveSchema,
+  paginationSchema,
   rollbackRevisionSchema,
   updateObjectiveNodeSchema,
   updateObjectiveRevisionSchema,
@@ -31,15 +34,20 @@ import {
 
 export const objectivesRouter = new Hono<HonoEnv>()
   // Returns published objectives as { objectives }.
-  .get("/", async (c) => {
-    const objectives = await listPublishedObjectives(c.get("supabase"));
-    return c.json({ objectives });
+  .get("/", zValidator("query", paginationSchema), async (c) => {
+    const { page, limit } = c.req.valid("query");
+    const { data, total } = await listPublishedObjectives(c.get("supabase"), {
+      page,
+      limit,
+    });
+    return c.json({ objectives: data, total });
   })
 
   // 201 with { revision_id } for the editor route.
   .post(
     "/",
     requireUser,
+    rateLimitMiddleware({ ...CREATE, bucket: "objective-create" }),
     zValidator("json", createObjectiveSchema),
     async (c) => {
       const { revision_id } = await createObjective(
@@ -60,26 +68,33 @@ export const objectivesRouter = new Hono<HonoEnv>()
   })
 
   // Archives the objective. 404 if missing or not permitted.
-  .delete("/:slug", requireUser, async (c) => {
-    const objective = await archiveObjective(
-      c.get("supabase"),
-      c.req.param("slug")
-    );
-    // Drop the archived objective from the search index (best-effort).
-    scheduleSearchSync(
-      c,
-      syncObjectiveDocument(c.env, c.get("supabase"), objective.id)
-    );
-    return c.json({ objective });
-  })
+  .delete(
+    "/:slug",
+    requireUser,
+    rateLimitMiddleware({ ...CONTRIBUTION, bucket: "objective-archive" }),
+    async (c) => {
+      const objective = await archiveObjective(
+        c.get("supabase"),
+        c.req.param("slug")
+      );
+      // Drop the archived objective from the search index (best-effort).
+      scheduleSearchSync(
+        c,
+        syncObjectiveDocument(c.env, c.get("supabase"), objective.id)
+      );
+      return c.json({ objective });
+    }
+  )
 
   // Returns the revision history as { revisions }, newest first.
-  .get("/:slug/revisions", async (c) => {
-    const revisions = await listObjectiveRevisions(
+  .get("/:slug/revisions", zValidator("query", paginationSchema), async (c) => {
+    const { page, limit } = c.req.valid("query");
+    const { data, total } = await listObjectiveRevisions(
       c.get("supabase"),
-      c.req.param("slug")
+      c.req.param("slug"),
+      { page, limit }
     );
-    return c.json({ revisions });
+    return c.json({ revisions: data, total });
   })
 
   // 201 with { revision_id } for the new draft.
@@ -101,6 +116,10 @@ export const objectiveRevisionsRouter = new Hono<HonoEnv>()
   .patch(
     "/:id",
     requireUser,
+    rateLimitMiddleware({
+      ...CONTRIBUTION,
+      bucket: "objective-revision-update",
+    }),
     zValidator("json", updateObjectiveRevisionSchema),
     async (c) => {
       const { revision, subjects } = await updateObjectiveRevision(
@@ -128,6 +147,7 @@ export const objectiveRevisionsRouter = new Hono<HonoEnv>()
   .patch(
     "/:id/nodes/:baseId",
     requireUser,
+    rateLimitMiddleware({ ...CONTRIBUTION, bucket: "objective-node-update" }),
     zValidator("json", updateObjectiveNodeSchema),
     async (c) => {
       const { node } = await updateObjectiveNode(
@@ -141,23 +161,29 @@ export const objectiveRevisionsRouter = new Hono<HonoEnv>()
   )
 
   // Publishes the draft. Returns { slug }; 403 unless the author/curator.
-  .post("/:id/publish", requireUser, async (c) => {
-    const { slug } = await publishObjectiveRevision(
-      c.get("supabase"),
-      c.req.param("id")
-    );
-    // The objective just went (or stayed) live — refresh its search document.
-    scheduleSearchSync(
-      c,
-      syncObjectiveForRevision(c.env, c.get("supabase"), c.req.param("id"))
-    );
-    return c.json({ slug });
-  })
+  .post(
+    "/:id/publish",
+    requireUser,
+    rateLimitMiddleware({ ...CONTRIBUTION, bucket: "objective-publish" }),
+    async (c) => {
+      const { slug } = await publishObjectiveRevision(
+        c.get("supabase"),
+        c.req.param("id")
+      );
+      // The objective just went (or stayed) live — refresh its search document.
+      scheduleSearchSync(
+        c,
+        syncObjectiveForRevision(c.env, c.get("supabase"), c.req.param("id"))
+      );
+      return c.json({ slug });
+    }
+  )
 
   // 201 with { revision_id } for a new draft cloned from the body's revision_id.
   .post(
     "/:id/rollback",
     requireUser,
+    rateLimitMiddleware({ ...CONTRIBUTION, bucket: "objective-rollback" }),
     zValidator("json", rollbackRevisionSchema),
     async (c) => {
       const { revision_id } = await rollbackObjectiveRevision(

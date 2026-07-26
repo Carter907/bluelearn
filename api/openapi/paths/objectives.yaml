@@ -4,6 +4,9 @@
     tags: [objectives]
     summary: List published objectives
     operationId: listObjectives
+    parameters:
+      - $ref: "../components/parameters/pagination.yaml#/Page"
+      - $ref: "../components/parameters/pagination.yaml#/Limit"
     responses:
       "200":
         description: Published objectives
@@ -17,7 +20,10 @@
                   type: array
                   items:
                     $ref: "../components/schemas/objectives/ObjectiveListItem.yaml"
-              required: [objectives]
+                total:
+                  type: integer
+                  minimum: 0
+              required: [objectives, total]
   post:
     tags: [objectives]
     summary: Create a draft objective
@@ -134,6 +140,9 @@
     tags: [objectives]
     summary: Revision history for this objective
     operationId: listObjectiveRevisions
+    parameters:
+      - $ref: "../components/parameters/pagination.yaml#/Page"
+      - $ref: "../components/parameters/pagination.yaml#/Limit"
     responses:
       "200":
         description: Revisions, newest first
@@ -147,7 +156,10 @@
                   type: array
                   items:
                     $ref: "../components/schemas/objective-revisions/ObjectiveRevisionListItem.yaml"
-              required: [revisions]
+                total:
+                  type: integer
+                  minimum: 0
+              required: [revisions, total]
       "404":
         $ref: "../components/responses/_shared.yaml#/NotFound"
   post:

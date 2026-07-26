@@ -4,6 +4,8 @@ import type { HonoEnv } from "../types";
 type RateLimitOptions = {
   windowSeconds: number;
   max: number;
+  bucket: string;
+  keyBy?: "user" | "ip";
   message?: string;
 };
 
@@ -71,12 +73,17 @@ async function hitDurableObject(
 export function rateLimitMiddleware(
   options: RateLimitOptions
 ): MiddlewareHandler<HonoEnv> {
+  const keyBy = options.keyBy ?? "user";
   return async (c, next) => {
-    const user = c.get("user");
-    // Defensive -- requireUser should always run first.
-    if (!user) return c.json({ error: "Unauthorized" }, 401);
-
-    const key = `user:${user.id}`;
+    let key: string;
+    if (keyBy === "ip") {
+      const ip = c.req.header("CF-Connecting-IP") ?? "unknown";
+      key = `ip:${ip}:${options.bucket}`;
+    } else {
+      const user = c.get("user");
+      if (!user) return c.json({ error: "Unauthorized" }, 401);
+      key = `user:${user.id}:${options.bucket}`;
+    }
 
     const { count, resetAt } = c.env.RATE_LIMITER
       ? await hitDurableObject(c.env.RATE_LIMITER, key, options.windowSeconds)
