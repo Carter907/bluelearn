@@ -2,6 +2,8 @@ import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
 import { updateProfileSchema } from "@bluelearn/schemas";
 import { getServiceSupabase, requireUser } from "../middleware/auth.middleware";
+import { rateLimitMiddleware } from "../middleware/rate-limit.middleware";
+import { CONTRIBUTION } from "../middleware/rateLimits";
 import type { HonoEnv } from "../types";
 import {
   getMyDrafts,
@@ -32,6 +34,7 @@ export const meRouter = new Hono<HonoEnv>()
   .patch(
     "/",
     requireUser,
+    rateLimitMiddleware({ ...CONTRIBUTION, bucket: "profile-update" }),
     zValidator("json", updateProfileSchema),
     async (c) => {
       const { profile, roles } = await updateMyProfile(

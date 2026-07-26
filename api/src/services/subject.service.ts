@@ -2,6 +2,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type {
   GuideListItem,
   ObjectiveListItem,
+  Pagination,
   SubjectListItem,
 } from "@bluelearn/schemas";
 import type { Database } from "../database.types";
@@ -41,11 +42,18 @@ function tallyBySubject(tagsPerRow: Array<Array<{ subject_id: string }>>) {
   return counts;
 }
 
-export async function listSubjects(supabase: DB): Promise<SubjectListItem[]> {
-  const { data, error } = await supabase
+export async function listSubjects(
+  supabase: DB,
+  { page, limit }: Pagination = { page: 1, limit: 20 }
+): Promise<{ data: SubjectListItem[]; total: number }> {
+  const from = (page - 1) * limit;
+  const to = from + limit - 1;
+
+  const { data, count, error } = await supabase
     .from("subjects")
-    .select("id, slug, name, summary")
-    .eq("status", "published");
+    .select("id, slug, name, summary", { count: "exact" })
+    .eq("status", "published")
+    .range(from, to);
 
   if (error) {
     console.error(error);
@@ -59,11 +67,14 @@ export async function listSubjects(supabase: DB): Promise<SubjectListItem[]> {
     countObjectivesBySubject(supabase),
   ]);
 
-  return (data ?? []).map((subject) => ({
-    ...subject,
-    guides_total: guideCounts.get(subject.id) ?? 0,
-    objectives_total: objectiveCounts.get(subject.id) ?? 0,
-  }));
+  return {
+    data: (data ?? []).map((subject) => ({
+      ...subject,
+      guides_total: guideCounts.get(subject.id) ?? 0,
+      objectives_total: objectiveCounts.get(subject.id) ?? 0,
+    })),
+    total: count ?? 0,
+  };
 }
 
 async function countGuidesBySubject(supabase: DB) {
@@ -166,11 +177,18 @@ export async function getSubjectBySlug(supabase: DB, rawSlug: string) {
 
 export async function listSubjectGuides(
   supabase: DB,
-  rawSlug: string
-): Promise<GuideListItem[]> {
+  rawSlug: string,
+  { page, limit }: Pagination = { page: 1, limit: 20 }
+): Promise<{ data: GuideListItem[]; total: number }> {
   const subject = await resolveSubjectId(supabase, rawSlug);
+  const from = (page - 1) * limit;
+  const to = from + limit - 1;
 
-  const { data, error: guideError } = await supabase
+  const {
+    data,
+    count,
+    error: guideError,
+  } = await supabase
     .from("guide_bases")
     .select(
       `id, slug, title, knowledge_type, status, created_at,
@@ -180,36 +198,50 @@ export async function listSubjectGuides(
            id, summary, word_count,
            guide_revision_subjects!inner(subject_id)
          )
-       )`
+       )`,
+      { count: "exact" }
     )
     .eq("canonical.current.guide_revision_subjects.subject_id", subject.id)
-    .order("title");
+    .order("title")
+    .range(from, to);
 
   if (guideError) {
     console.error(guideError);
     throw new ServiceError("Failed to load subject guides", 500);
   }
 
-  return buildGuideListItems(supabase, data ?? []);
+  return {
+    data: await buildGuideListItems(supabase, data ?? []),
+    total: count ?? 0,
+  };
 }
 
 export async function listSubjectObjectives(
   supabase: DB,
-  rawSlug: string
-): Promise<ObjectiveListItem[]> {
+  rawSlug: string,
+  { page, limit }: Pagination = { page: 1, limit: 20 }
+): Promise<{ data: ObjectiveListItem[]; total: number }> {
   const subject = await resolveSubjectId(supabase, rawSlug);
+  const from = (page - 1) * limit;
+  const to = from + limit - 1;
 
-  const { data, error: objError } = await supabase
+  const {
+    data,
+    count,
+    error: objError,
+  } = await supabase
     .from("objectives")
     .select(
       `id, slug, created_by, created_at, current_revision_id,
        current:objective_revisions!objectives_current_revision_id_fkey!inner(
          title, summary,
          objective_revision_subjects!inner(subject_id)
-       )`
+       )`,
+      { count: "exact" }
     )
     .eq("current.objective_revision_subjects.subject_id", subject.id)
-    .eq("status", "published");
+    .eq("status", "published")
+    .range(from, to);
 
   if (objError) {
     console.error(objError);
@@ -219,5 +251,8 @@ export async function listSubjectObjectives(
   // Title lives on the revision and the node -> revision FK is composite
   // (to-many), so PostgREST can't sort the objectives by it. Sort here instead.
   const items = await buildObjectiveListItems(supabase, data ?? []);
-  return items.sort((a, b) => (a.title ?? "").localeCompare(b.title ?? ""));
+  return {
+    data: items.sort((a, b) => (a.title ?? "").localeCompare(b.title ?? "")),
+    total: count ?? 0,
+  };
 }

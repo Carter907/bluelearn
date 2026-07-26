@@ -3,6 +3,7 @@ import type {
   CreateObjectiveInput,
   FeaturedNode,
   ObjectiveListItem,
+  Pagination,
 } from "@bluelearn/schemas";
 import type { Database } from "../database.types";
 import { ServiceError } from "../lib/service-error";
@@ -224,22 +225,31 @@ export async function buildObjectiveListItems(
 // List published objectives as cards, newest first. RLS hides drafts from
 // non-authors.
 export async function listPublishedObjectives(
-  supabase: DB
-): Promise<ObjectiveListItem[]> {
-  const { data, error } = await supabase
+  supabase: DB,
+  { page, limit }: Pagination = { page: 1, limit: 20 }
+): Promise<{ data: ObjectiveListItem[]; total: number }> {
+  const from = (page - 1) * limit;
+  const to = from + limit - 1;
+
+  const { data, count, error } = await supabase
     .from("objectives")
     .select(
-      `id, slug, created_by, created_at, current_revision_id, ${CURRENT_META}`
+      `id, slug, created_by, created_at, current_revision_id, ${CURRENT_META}`,
+      { count: "exact" }
     )
     .eq("status", "published")
-    .order("created_at", { ascending: false });
+    .order("created_at", { ascending: false })
+    .range(from, to);
 
   if (error) {
     console.error(error);
     throw new ServiceError("Failed to load objectives", 500);
   }
 
-  return buildObjectiveListItems(supabase, data ?? []);
+  return {
+    data: await buildObjectiveListItems(supabase, data ?? []),
+    total: count ?? 0,
+  };
 }
 
 // Create a objective: bundles the objective shell + revision 1 + the targets' prerequisite
@@ -317,18 +327,27 @@ export async function archiveObjective(supabase: DB, rawSlug: string) {
 
 // The objective's revision history, newest first. Drafts (null published_at) sort by
 // creation alongside published ones.
-export async function listObjectiveRevisions(supabase: DB, rawSlug: string) {
+export async function listObjectiveRevisions(
+  supabase: DB,
+  rawSlug: string,
+  { page, limit }: Pagination = { page: 1, limit: 20 }
+) {
   const { id } = await resolveObjective(supabase, rawSlug);
+  const from = (page - 1) * limit;
+  const to = from + limit - 1;
 
-  const { data, error } = await supabase
+  const { data, count, error } = await supabase
     .from("objective_revisions")
-    .select("id, title, change_summary, status, created_at, published_at")
+    .select("id, title, change_summary, status, created_at, published_at", {
+      count: "exact",
+    })
     .eq("objective_id", id)
-    .order("created_at", { ascending: false });
+    .order("created_at", { ascending: false })
+    .range(from, to);
 
   if (error) {
     console.error(error);
     throw new ServiceError("Failed to load revisions", 500);
   }
-  return data ?? [];
+  return { data: data ?? [], total: count ?? 0 };
 }

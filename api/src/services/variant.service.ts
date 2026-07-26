@@ -1,5 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import type { CastVoteInput } from "@bluelearn/schemas";
+import type { CastVoteInput, Pagination } from "@bluelearn/schemas";
 import type { Database } from "../database.types";
 import { ServiceError } from "../lib/service-error";
 import { promoteCanonicalIfNeeded } from "./promotion.service";
@@ -146,27 +146,37 @@ export async function retractVote(supabase: DB, voterId: string, id: string) {
 // newest live first. Ordered by approved_at (when each became the guide's
 // current content), not authoring order, so an early draft approved late lands
 // where it went live. Empty until the review flow promotes a revision.
-export async function listVariantRevisions(supabase: DB, id: string) {
+export async function listVariantRevisions(
+  supabase: DB,
+  id: string,
+  { page, limit }: Pagination = { page: 1, limit: 20 }
+) {
   await requireVariant(supabase, id);
+  const from = (page - 1) * limit;
+  const to = from + limit - 1;
 
-  const { data, error } = await supabase
+  const { data, count, error } = await supabase
     .from("guide_revisions")
-    .select("id, created_at, approved_at")
+    .select("id, created_at, approved_at", { count: "exact" })
     .eq("guide_id", id)
     .not("approved_at", "is", null)
-    .order("approved_at", { ascending: false });
+    .order("approved_at", { ascending: false })
+    .range(from, to);
 
   if (error) {
     console.error(error);
     throw new ServiceError("Failed to load variant revisions", 500);
   }
 
-  return (data ?? []).map((rev) => ({
-    id: rev.id,
-    status: "approved" as const,
-    created_at: rev.created_at,
-    approved_at: rev.approved_at,
-  }));
+  return {
+    data: (data ?? []).map((rev) => ({
+      id: rev.id,
+      status: "approved" as const,
+      created_at: rev.created_at,
+      approved_at: rev.approved_at,
+    })),
+    total: count ?? 0,
+  };
 }
 
 // Start a new draft revision on an already-published variant, seeded from its

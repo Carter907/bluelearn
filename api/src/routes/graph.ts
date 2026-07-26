@@ -1,6 +1,8 @@
 import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
 import { requireUser } from "../middleware/auth.middleware";
+import { rateLimitMiddleware } from "../middleware/rate-limit.middleware";
+import { CONTRIBUTION } from "../middleware/rateLimits";
 import type { HonoEnv } from "../types";
 import {
   createPrerequisiteSchema,
@@ -17,6 +19,7 @@ export const prerequisitesRouter = new Hono<HonoEnv>()
   .post(
     "/",
     requireUser,
+    rateLimitMiddleware({ ...CONTRIBUTION, bucket: "prerequisite-create" }),
     zValidator("json", createPrerequisiteSchema),
     async (c) => {
       const { from_guide_base_id, to_guide_base_id } = c.req.valid("json");
@@ -30,13 +33,18 @@ export const prerequisitesRouter = new Hono<HonoEnv>()
   )
 
   // Suspends the edge; returns { edge }. 404 if missing.
-  .delete("/:id", requireUser, async (c) => {
-    const edge = await suspendPrerequisite(
-      c.get("supabase"),
-      c.req.param("id")
-    );
-    return c.json({ edge }, 200);
-  });
+  .delete(
+    "/:id",
+    requireUser,
+    rateLimitMiddleware({ ...CONTRIBUTION, bucket: "prerequisite-suspend" }),
+    async (c) => {
+      const edge = await suspendPrerequisite(
+        c.get("supabase"),
+        c.req.param("id")
+      );
+      return c.json({ edge }, 200);
+    }
+  );
 
 export const todosRouter = new Hono<HonoEnv>()
   // Returns open todo prerequisites as { todos }.
@@ -49,6 +57,7 @@ export const todosRouter = new Hono<HonoEnv>()
   .post(
     "/",
     requireUser,
+    rateLimitMiddleware({ ...CONTRIBUTION, bucket: "todo-create" }),
     zValidator("json", createTodoPrerequisiteSchema),
     async (c) => {
       const { guide_base_id, title } = c.req.valid("json");

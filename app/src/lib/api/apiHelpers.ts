@@ -9,3 +9,27 @@ export async function assertOk(res: Response) {
 
   throw new Error(body?.error ?? `Request failed (${res.status})`);
 }
+
+export const PAGE_LIMIT = 100;
+export async function collectAll<T>(
+  fetchPage: (query: {
+    page: string;
+    limit: string;
+  }) => Promise<{ items: Array<T>; total: number }>
+): Promise<Array<T>> {
+  const out: Array<T> = [];
+  let items: Array<T> = [];
+  let total = Infinity;
+  let page = 1;
+
+  do {
+    ({ items, total } = await fetchPage({
+      page: String(page),
+      limit: String(PAGE_LIMIT),
+    }));
+    out.push(...items);
+    page++;
+  } while (out.length < total && items.length !== 0);
+
+  return out;
+}
