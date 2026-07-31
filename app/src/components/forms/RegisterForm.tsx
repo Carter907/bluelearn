@@ -16,7 +16,6 @@ import {
 } from "@/components/ui/card";
 import {
   Field,
-  FieldContent,
   FieldDescription,
   FieldGroup,
   FieldLabel,
@@ -33,7 +32,7 @@ export function RegisterForm({
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-  const [acceptedTerms, setAcceptedTerms] = useState(true);
+  const [acceptedPolicies, setAcceptedPolicies] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
   async function handleSubmit(e: React.FormEvent) {
@@ -44,7 +43,7 @@ export function RegisterForm({
       email,
       password,
       confirmPassword,
-      acceptedTerms,
+      acceptedPolicies,
     });
     if (errors) {
       toast.error(Object.values(errors)[0]);
@@ -80,11 +79,11 @@ export function RegisterForm({
 
                 <div className="space-y-2">
                   <CardTitle className="text-2xl font-semibold tracking-tight">
-                    Welcome back
+                    Get started
                   </CardTitle>
 
                   <CardDescription className="text-sm text-muted-foreground">
-                    Sign in to start sharing knowledge.
+                    Create an account to start sharing knowledge.
                   </CardDescription>
                 </div>
               </CardHeader>
@@ -174,20 +173,37 @@ export function RegisterForm({
               <CardFooter className="flex flex-col gap-5 border-t p-6">
                 <Field orientation="horizontal">
                   <Checkbox
-                    id="terms-checkbox-2"
-                    name="terms-checkbox-2"
-                    checked={acceptedTerms}
-                    onCheckedChange={(v) => setAcceptedTerms(v === true)}
+                    id="policies-checkbox"
+                    name="policies-checkbox"
+                    className="border-primary"
+                    checked={acceptedPolicies}
+                    onCheckedChange={(isTicked) =>
+                      setAcceptedPolicies(isTicked === true)
+                    }
                   />
-                  <FieldContent>
-                    <FieldLabel htmlFor="terms-checkbox-2">
-                      Accept terms of service
-                    </FieldLabel>
-                    <FieldDescription className="font-mono">
-                      By clicking this checkbox, you agree to the terms of
-                      service and privacy policy.
-                    </FieldDescription>
-                  </FieldContent>
+
+                  <FieldLabel htmlFor="policies-checkbox" className="block">
+                    I have read and agree to the{" "}
+                    <a
+                      href="https://bluelearn.org/terms"
+                      target="_blank"
+                      rel="noreferrer"
+                      onClick={(e) => e.stopPropagation()}
+                      className="text-primary underline underline-offset-2 hover:text-primary/80"
+                    >
+                      Terms of Service
+                    </a>{" "}
+                    and the{" "}
+                    <a
+                      href="https://bluelearn.org/privacy"
+                      target="_blank"
+                      rel="noreferrer"
+                      onClick={(e) => e.stopPropagation()}
+                      className="text-primary underline underline-offset-2 hover:text-primary/80"
+                    >
+                      Privacy Policy
+                    </a>
+                  </FieldLabel>
                 </Field>
 
                 <Button

@@ -11,7 +11,7 @@ export type RegisterInput = {
   email: string;
   password: string;
   confirmPassword: string;
-  acceptedTerms: boolean;
+  acceptedPolicies: boolean;
 };
 
 export type RegisterErrors = Partial<Record<keyof RegisterInput, string>>;
@@ -30,8 +30,8 @@ export function validateRegister(input: RegisterInput): RegisterErrors | null {
   if (input.password !== input.confirmPassword) {
     errors.confirmPassword = "Passwords do not match";
   }
-  if (!input.acceptedTerms) {
-    errors.acceptedTerms = "You must accept the terms of service";
+  if (!input.acceptedPolicies) {
+    errors.acceptedPolicies = "You must accept the terms of service";
   }
 
   return Object.keys(errors).length > 0 ? errors : null;
