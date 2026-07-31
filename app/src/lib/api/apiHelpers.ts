@@ -1,3 +1,15 @@
+// Carries the status so callers can branch on it (e.g. a route turning a 403
+// into a not-found screen).
+export class ApiError extends Error {
+  constructor(
+    message: string,
+    readonly status: number
+  ) {
+    super(message);
+    this.name = "ApiError";
+  }
+}
+
 // The API answers failures with { error: string }, so surface that message so
 // callers can render it, and fall back to the status when the body isn't JSON.
 export async function assertOk(res: Response) {
@@ -7,7 +19,10 @@ export async function assertOk(res: Response) {
     error?: string;
   } | null;
 
-  throw new Error(body?.error ?? `Request failed (${res.status})`);
+  throw new ApiError(
+    body?.error ?? `Request failed (${res.status})`,
+    res.status
+  );
 }
 
 export const PAGE_LIMIT = 100;

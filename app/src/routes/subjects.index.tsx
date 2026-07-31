@@ -1,23 +1,34 @@
+import { useEffect, useMemo, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 
 import { Separator } from "@/components/ui/separator";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
-import { SubjectCard } from "@/components/cards/SubjectCard";
-import { Route as SubjectRoute } from "@/routes/subjects.$slug";
+import { SubjectsGrid } from "@/components/subjects/SubjectGrid";
+import {
+  NoSubjectsError,
+  SubjectsLoadError,
+} from "@/components/subjects/SubjectsError";
+import { SubjectSidebar } from "@/components/sidebar/SubjectSidebar";
 
 import { listSubjects } from "@/lib/api/subjects";
+import { getSubjectsGroupedByChar } from "@/lib/groupSubjects";
 
 export const Route = createFileRoute("/subjects/")({
   loader: ({ abortController }) =>
     listSubjects({ signal: abortController.signal }),
-  errorComponent: SubjectsError,
+  errorComponent: SubjectsLoadError,
   component: RouteComponent,
 });
 
-function Shell({ children }: { children: React.ReactNode }) {
+type SubjectsPageProps = {
+  children: React.ReactNode;
+};
+
+export const SubjectsPage = ({ children }: SubjectsPageProps) => {
   return (
     <div className="mx-auto max-w-[1280px] border-x bg-background">
-      <section className="border-b px-8 py-8 lg:px-16">
+      <div className="border-b px-8 py-8 lg:px-16">
         <div className="mb-4 flex items-center justify-between">
           <h1 className="font-mono text-[14px] tracking-[0.08em] text-muted-foreground uppercase">
             Browse By Subjects
@@ -27,47 +38,69 @@ function Shell({ children }: { children: React.ReactNode }) {
         <Separator className="mb-4 bg-border" />
 
         {children}
-      </section>
+      </div>
     </div>
   );
-}
-
-function SubjectsError() {
-  return (
-    <Shell>
-      <p className="text-sm text-muted-foreground">
-        Subjects could not be loaded. Try again shortly.
-      </p>
-    </Shell>
-  );
-}
+};
 
 function RouteComponent() {
   const subjects = Route.useLoaderData();
 
+  const groupedSubjects = useMemo(
+    () => getSubjectsGroupedByChar(subjects),
+    [subjects]
+  );
+
+  const letters = useMemo(
+    () => Array.from(groupedSubjects.keys()),
+    [groupedSubjects]
+  );
+
+  const [selectedLetter, setSelectedLetter] = useState("");
+
+  useEffect(() => {
+    if (!selectedLetter && letters.length > 0) {
+      setSelectedLetter(letters[0]);
+    }
+  }, [letters, selectedLetter]);
+
   if (subjects.length === 0) {
     return (
-      <Shell>
-        <p className="text-sm text-muted-foreground">No subjects yet.</p>
-      </Shell>
+      <SubjectsPage>
+        <NoSubjectsError />
+      </SubjectsPage>
     );
   }
 
   return (
-    <Shell>
-      {/* Grid */}
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-        {subjects.map((subject) => {
-          const s = {
-            ...subject,
-            stats: [
-              { label: "Objectives", data: subject.objectives_total },
-              { label: "Guides", data: subject.guides_total },
-            ],
-          };
-          return <SubjectCard key={s.slug} subject={s} to={SubjectRoute.to} />;
-        })}
-      </div>
-    </Shell>
+    <SubjectsPage>
+      <section>
+        {/* Desktop */}
+        <div className="hidden md:grid md:grid-cols-[320px_1fr]">
+          <SubjectSidebar groupedSubject={groupedSubjects} />
+
+          <SubjectsGrid subjects={subjects} />
+        </div>
+
+        {/* Mobile */}
+        <div className="md:hidden">
+          <Tabs value={selectedLetter} onValueChange={setSelectedLetter}>
+            <TabsList className="flex h-auto min-h-10 w-full justify-start gap-2 overflow-x-auto overflow-y-hidden bg-transparent p-0">
+              {letters.map((letter) => (
+                <TabsTrigger
+                  key={letter}
+                  value={letter}
+                  className="mono-micro flex h-auto shrink-0 items-center rounded-full border border-border bg-background px-3 py-2 text-sm text-muted-foreground transition-colors hover:border-primary/50 hover:bg-muted data-[state=active]:border-primary data-[state=active]:bg-primary/10 data-[state=active]:text-primary data-[state=active]:ring-1 data-[state=active]:ring-primary/20"
+                >
+                  {letter}
+                </TabsTrigger>
+              ))}
+            </TabsList>
+          </Tabs>
+
+          <SubjectsGrid subjects={groupedSubjects.get(selectedLetter) ?? []} />
+        </div>
+      </section>
+    </SubjectsPage>
   );
 }

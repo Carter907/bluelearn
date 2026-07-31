@@ -12,6 +12,7 @@
   --brand-grey: #59636d;
   --brand-border: #d9dfe4;
   --brand-blue: #3d80dd;
+  --brand-dk-blue: #12315f;
   --brand-dark: #0a0a0a;
   --brand-cta: #111827;
   --brand-surface: #fafafa;
@@ -178,6 +179,18 @@
     background: #ff0000;
     transform: scale(1.05);
   }
+
+  /* Doubled class so the red survives the destructive variant's dark:bg rule */
+  .btn-danger.btn-danger {
+    @apply inline-flex items-center justify-center rounded-md px-4 py-2 font-mono text-xs font-bold text-white uppercase transition-all duration-200;
+    background: #e11d26;
+  }
+
+  .btn-danger.btn-danger:hover {
+    background: #c4161e;
+    transform: scale(1.05);
+  }
+
   .btn-approve {
     @apply inline-flex items-center justify-center rounded-md px-4 py-2 font-mono text-xs font-bold text-foreground uppercase transition-all duration-200;
     background: #00e408;
@@ -208,6 +221,54 @@
 
   .sidebar-item-active {
     @apply bg-accent text-primary;
+  }
+
+  /* Theme Preview - Light*/
+
+  .preview-light {
+    --preview-bg: #ffffff;
+    --preview-card: #f6f8fa;
+    --preview-sidebar: #f6f8fa;
+    --preview-header: #f6f8fa;
+    --preview-border: #d0d7de;
+    --preview-line: #afb8c1;
+  }
+
+  /* Theme Preview - Dark*/
+
+  .preview-dark {
+    --preview-bg: #0d1117;
+    --preview-card: #161b22;
+    --preview-sidebar: #161b22;
+    --preview-header: #161b22;
+    --preview-border: #30363d;
+    --preview-line: #6e7681;
+  }
+
+  /* Shared preview utilities */
+
+  .preview-bg {
+    background: var(--preview-bg);
+  }
+
+  .preview-card {
+    background: var(--preview-card);
+  }
+
+  .preview-sidebar {
+    background: var(--preview-sidebar);
+  }
+
+  .preview-header {
+    background: var(--preview-header);
+  }
+
+  .preview-border {
+    border-color: var(--preview-border);
+  }
+
+  .preview-line {
+    background: var(--preview-line);
   }
 }
 
@@ -267,6 +328,7 @@
   --color-brand-grey: var(--brand-grey);
   --color-brand-border: var(--brand-border);
   --color-brand-blue: var(--brand-blue);
+  --color-brand-dk-blue: var(--brand-dk-blue);
   --color-brand-dark: var(--brand-dark);
   --color-brand-cta: var(--brand-cta);
   --color-brand-surface: var(--brand-surface);

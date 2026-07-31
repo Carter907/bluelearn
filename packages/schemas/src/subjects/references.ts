@@ -7,3 +7,4 @@ export const subjectReferenceSchema = z.object({
 });
 
 export type SubjectReference = z.infer<typeof subjectReferenceSchema>;
+export type SubjectReferences = Array<SubjectReference>;

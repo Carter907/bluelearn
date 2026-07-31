@@ -56,15 +56,16 @@ app.onError((err, c) => {
   return c.json({ error: "Internal server error" }, 500);
 });
 
-// Scheduled trigger (schedule in wrangler.jsonc).
-async function scheduled(_event: ScheduledController, env: Bindings) {
+// Scheduled trigger (schedules in wrangler.jsonc).
+async function scheduled(event: ScheduledController, env: Bindings) {
   const supabase = createClient<Database>(
     env.SUPABASE_URL,
     env.SUPABASE_SECRET_KEY,
     { auth: { persistSession: false, autoRefreshToken: false } }
   );
-  await assemblePendingPanels(supabase);
-  await promoteAllCanonicals(supabase);
+
+  if (event.cron === "*/5 * * * *") await assemblePendingPanels(supabase);
+  if (event.cron === "0 */12 * * *") await promoteAllCanonicals(supabase);
 }
 
 // Default export doubles as the Workers handler and the cron entry: Hono serves

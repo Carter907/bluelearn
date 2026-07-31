@@ -21,10 +21,10 @@ properties:
       # Calculus
   tags:
     type: array
-    description: Existing subject slugs to tag the guide with.
+    description: Ids of existing subjects to tag the guide with.
     items:
       type: string
-    example: [calculus, algebra]
+      format: uuid
   prerequisites:
     type: array
     description: Slugs of existing guides that must be read first.

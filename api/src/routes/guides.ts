@@ -81,13 +81,10 @@ export const guidesRouter = new Hono<HonoEnv>()
     }
   )
 
-  // Returns the guide content and its subject tags.
+  // Returns the guide's canonical content, author, and subject tags.
   .get("/:slug", async (c) => {
-    const { guide, subjects } = await getGuideBySlug(
-      c.get("supabase"),
-      c.req.param("slug")
-    );
-    return c.json({ guide, subjects });
+    const guide = await getGuideBySlug(c.get("supabase"), c.req.param("slug"));
+    return c.json(guide);
   })
 
   // Archives the guide. 404 if missing or not permitted.
@@ -135,6 +132,7 @@ export const guidesRouter = new Hono<HonoEnv>()
     async (c) => {
       const { revision_id } = await addGuideVariant(
         c.get("supabase"),
+        c.get("user").id,
         c.req.param("slug"),
         c.req.valid("json")
       );
@@ -245,13 +243,28 @@ export const variantsRouter = new Hono<HonoEnv>()
   );
 
 export const guideRevisionsRouter = new Hono<HonoEnv>()
-  // Returns one revision snapshot and its subject tags as { revision, subjects }.
+  // Returns a revision snapshot, its subject tags, knowledge type, whether it is
+  // a variant, its base slug, prerequisites, and todos for resuming the
+  // contribute flow.
   .get("/:id", async (c) => {
-    const { revision, subjects } = await getRevision(
-      c.get("supabase"),
-      c.req.param("id")
-    );
-    return c.json({ revision, subjects });
+    const {
+      revision,
+      subjects,
+      knowledge_type,
+      is_variant,
+      base_slug,
+      prerequisites,
+      todos,
+    } = await getRevision(c.get("supabase"), c.req.param("id"));
+    return c.json({
+      revision,
+      subjects,
+      knowledge_type,
+      is_variant,
+      base_slug,
+      prerequisites,
+      todos,
+    });
   })
 
   // Overwrites a draft revision in place; returns { revision, subjects }. 404 once submitted.

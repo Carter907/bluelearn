@@ -3,23 +3,24 @@ import { zValidator } from "@hono/zod-validator";
 import { updateProfileSchema } from "@bluelearn/schemas";
 import { getServiceSupabase, requireUser } from "../middleware/auth.middleware";
 import { rateLimitMiddleware } from "../middleware/rate-limit.middleware";
-import { CONTRIBUTION } from "../middleware/rateLimits";
+import { CONTRIBUTION, DESTRUCTIVE } from "../middleware/rateLimits";
 import type { HonoEnv } from "../types";
 import {
+  deleteMyAccount,
+  getMyActivity,
   getMyDrafts,
   getMyIdentity,
+  getMyProfileStats,
   getPublicProfile,
   updateMyProfile,
 } from "../services/identity.service";
 
 export const meRouter = new Hono<HonoEnv>()
-  // Returns the caller's profile and roles. 404 if no profile row.
+  // Returns the caller's profile, email, and roles. 404 if no profile row.
   .get("/", requireUser, async (c) => {
-    const { profile, roles } = await getMyIdentity(
-      c.get("supabase"),
-      c.get("user").id
-    );
-    return c.json({ profile, roles });
+    const user = c.get("user");
+    const { profile, roles } = await getMyIdentity(c.get("supabase"), user.id);
+    return c.json({ profile, email: user.email ?? null, roles });
   })
 
   // Lists the caller's own draft revisions (guides + objectives), newest first, for
@@ -30,6 +31,19 @@ export const meRouter = new Hono<HonoEnv>()
     return c.json(drafts);
   })
 
+  // Returns the number of caller's votes received, contributions, and reviews.
+  .get("/stats", requireUser, async (c) => {
+    const stats = await getMyProfileStats(c.get("supabase"), c.get("user").id);
+    return c.json(stats);
+  })
+
+  // The caller's activity feed, which includes authored guide and objective
+  // revisions and review cases they voted on, sorted by newest first.
+  .get("/activity", requireUser, async (c) => {
+    const activity = await getMyActivity(c.get("supabase"), c.get("user").id);
+    return c.json(activity);
+  })
+
   // Updates the caller's profile. 409 if the username is taken.
   .patch(
     "/",
@@ -37,12 +51,25 @@ export const meRouter = new Hono<HonoEnv>()
     rateLimitMiddleware({ ...CONTRIBUTION, bucket: "profile-update" }),
     zValidator("json", updateProfileSchema),
     async (c) => {
+      const user = c.get("user");
       const { profile, roles } = await updateMyProfile(
         c.get("supabase"),
-        c.get("user").id,
+        user.id,
         c.req.valid("json")
       );
-      return c.json({ profile, roles });
+      return c.json({ profile, email: user.email ?? null, roles });
+    }
+  )
+
+  // Permanently deletes the caller's account. Authored work is anonymized rather
+  // than removed. The client still holds a session, so it should sign out after.
+  .delete(
+    "/",
+    requireUser,
+    rateLimitMiddleware({ ...DESTRUCTIVE, bucket: "account-delete" }),
+    async (c) => {
+      await deleteMyAccount(getServiceSupabase(c), c.get("user").id);
+      return c.body(null, 204);
     }
   );
 

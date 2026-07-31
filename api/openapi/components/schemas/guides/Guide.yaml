@@ -1,44 +1,70 @@
 type: object
 additionalProperties: false
-description: Guide base joined to its canonical guide's current revision.
+description: A guide's canonical content with its author, subject tags, and prerequisites.
 properties:
-  id:
-    $ref: "../common/Uuid.yaml"
   slug:
     type: string
     example: calculus
+  variant_slug:
+    description: Slug of the currently canonical variant, for its /{base-slug}/{guide-slug} permalink.
+    type: [string, "null"]
+    example: original
   title:
     type: string
     example: Calculus
-  knowledge_type:
-    $ref: "./KnowledgeType.yaml"
-  status:
-    $ref: "../common/NodeStatus.yaml"
+  author:
+    description: Username of the guide's author. Empty string when unavailable.
+    type: string
+    example: bluelearn
+  summary:
+    type: [string, "null"]
+    example: The study of continuous change.
+  body:
+    type: [string, "null"]
+  duration_minutes:
+    description: Estimated reading time, derived from the body's word count.
+    type: integer
+    example: 4
   created_at:
     $ref: "../common/Timestamp.yaml"
-  updated_at:
-    $ref: "../common/Timestamp.yaml"
-  canonical:
-    type: [object, "null"]
-    description: The canonical guide and its live revision content.
-    properties:
-      id:
-        $ref: "../common/Uuid.yaml"
-      slug:
-        type: [string, "null"]
-        example: original
-      current:
-        type: [object, "null"]
-        properties:
-          id:
-            $ref: "../common/Uuid.yaml"
-          title:
-            type: string
-            example: Calculus
-          summary:
-            type: [string, "null"]
-          body:
-            type: [string, "null"]
-          created_at:
-            $ref: "../common/Timestamp.yaml"
-required: [id, slug, title, knowledge_type, status]
+  tags:
+    description: Subjects the guide is tagged with. slug links to the subject page.
+    type: array
+    items:
+      type: object
+      additionalProperties: false
+      properties:
+        slug:
+          type: string
+          example: math
+        name:
+          type: string
+          example: Mathematics
+      required: [slug, name]
+  prerequisites:
+    description: Guides that should be understood first.
+    type: array
+    items:
+      type: object
+      additionalProperties: false
+      properties:
+        slug:
+          type: string
+          example: algebra
+        title:
+          type: string
+          example: Algebra
+      required: [slug, title]
+required:
+  [
+    slug,
+    variant_slug,
+    title,
+    author,
+    summary,
+    body,
+    duration_minutes,
+    created_at,
+    tags,
+    prerequisites,
+  ]

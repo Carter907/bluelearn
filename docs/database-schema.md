@@ -45,8 +45,7 @@ A guide base is the graph node. It stores no content of its own, as all content 
 
 - `id`: primary key of the guide base; the node identity in the graph.
 - `canonical_guide_id`: nullable FK to `guides`. Points at the guide currently designated canonical, which is decided from a upvote/downvote system. Null before any guide is published. Creates a guide base ↔ guide pointer cycle (guide_bases → guides → guide_bases), so the FK should be deferrable.
-- `slug`: stable URL identifier.
-- `title`: human-readable title of the topic.
+- `slug`: stable URL identifier. Derived from the first published revision's title and frozen at first publish, unique across all guide bases; never auto-changed by later title edits, exactly like `guides.slug`.
 - `knowledge_type`: `theoretical` (a grand explanation of something we can observe) or `practical` (a route to a specific, well-defined goal). Determines how the topic is structured and what its guides are called: `practical` guides display as **methods**, `theoretical` guides as **alternatives**.
 - `status`: draft lifecycle state (see enum below).
 - `created_at`: row creation time.
@@ -58,7 +57,8 @@ Status enum values are:
 - `draft` — no guide has been published yet; `canonical_guide_id` is null.
 - `published` — live; `canonical_guide_id` points at a published guide.
 - `archived` — deliberately retired; `canonical_guide_id` is left untouched so the last canonical content stays retrievable.
-- 
+
+A guide base stores no `title` of its own, as the topic's live title is its canonical guide's current revision's, so a rename lives in history and cannot drift from the content it names. Listings read it through `canonical_guide_id → guides.current_revision_id`.
 
 ### `guides`
 
@@ -527,6 +527,8 @@ How a guide slug is decided:
 1. Default to `slugify(title)` of the guide's title (author may override).
 2. Resolve collisions against siblings under the **same base only** by appending a counter (`visual-method`, `visual-method-2`). This is a last resort, as it will only be used if the author decides to not change the guide's title to be unique. On guide submission, there will be a warning signaling the author that there is another guide with the same name, and they should change it unless they are okay with the numbered slug being used. Per-base scoping means a slug like `visual-method` can be reused under a different topic.
 3. Assign at **first publish**, once the title has settled through review; drafts are addressed by id until then. After that the slug is frozen, and later title edits never move it.
+
+The base slug is decided the same way at the same moment (the first guide under it publishing), except collisions resolve against **every** base rather than siblings, since `/{base-slug}` is a site-wide handle.
 
 ### Snapshots vs. Deltas
 

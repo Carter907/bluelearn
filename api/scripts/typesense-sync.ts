@@ -15,11 +15,13 @@ import {
   guidesCollectionSchema,
   objectivesCollectionSchema,
   stripNulls,
-  SEARCH_DOC_SELECT,
   OBJECTIVE_DOC_SELECT,
   type SearchDocument,
 } from "../src/services/search.service";
-import { buildGuideListItems } from "../src/services/guide.service";
+import {
+  buildGuideListItems,
+  PUBLISHED_GUIDE_SELECT,
+} from "../src/services/guide.service";
 import { buildObjectiveListItems } from "../src/services/objective.service";
 
 type DB = SupabaseClient<Database>;
@@ -102,15 +104,14 @@ async function ensureCollection(schema: {
 
 async function fetchPublishedGuides(supabase: DB): Promise<SearchDocument[]> {
   const { data, error } = await supabase
-    .from("guide_bases")
-    .select(SEARCH_DOC_SELECT)
-    .eq("status", "published");
+    .from("published_guides")
+    .select(PUBLISHED_GUIDE_SELECT);
 
   if (error) {
     console.error("Failed to load guides from Supabase:", error.message);
     process.exit(1);
   }
-  const rows = (data ?? []).filter((row) => row.slug && row.title);
+  const rows = (data ?? []).filter((row) => row.base_slug && row.title);
   const items = await buildGuideListItems(supabase, rows);
   return items.map(stripNulls);
 }

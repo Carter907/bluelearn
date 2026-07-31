@@ -10,6 +10,7 @@ type PropTypes = {
   onUploadImage?: (file: File) => Promise<string>;
   onSaveDraft: () => void;
   submitting?: boolean;
+  title?: string;
 };
 
 export const Content = ({
@@ -19,6 +20,7 @@ export const Content = ({
   onUploadImage,
   onSaveDraft,
   submitting,
+  title = "Content",
 }: PropTypes) => {
   const [mounted, setMounted] = useState(false);
 
@@ -29,7 +31,7 @@ export const Content = ({
   return (
     <Stepper.Content step="content">
       <StepperActionHeader
-        title={"Content"}
+        title={title}
         Stepper={Stepper}
         onSaveDraft={onSaveDraft}
         submitting={submitting}

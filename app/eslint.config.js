@@ -16,5 +16,10 @@ export default [
     ],
   },
   ...tanstackConfig,
+  {
+    languageOptions: {
+      parserOptions: { tsconfigRootDir: import.meta.dirname },
+    },
+  },
   prettier,
 ];

@@ -8,6 +8,8 @@ type PropTypes = {
   nextDisabled?: boolean;
   hideBackBtn?: boolean;
   submitting?: boolean;
+  saveDisabled?: boolean;
+  publishLabel?: string;
   onSaveDraft?: () => void;
   onPublish?: () => void;
 };
@@ -17,6 +19,8 @@ export const StepperActionHeader = ({
   Stepper,
   nextDisabled,
   submitting,
+  saveDisabled,
+  publishLabel = "Submit for Review",
   hideBackBtn,
   onSaveDraft,
   onPublish,
@@ -33,7 +37,7 @@ export const StepperActionHeader = ({
             <button
               type="button"
               className="btn-sec inline-flex items-center gap-2 disabled:pointer-events-none disabled:opacity-50"
-              disabled={submitting}
+              disabled={submitting || saveDisabled}
               onClick={onSaveDraft}
             >
               <Save className="size-4" />
@@ -52,7 +56,7 @@ export const StepperActionHeader = ({
               disabled={submitting}
               onClick={onPublish}
             >
-              Submit for Review
+              {publishLabel}
             </button>
           ) : (
             <Stepper.Next className="btn-pri" disabled={nextDisabled}>

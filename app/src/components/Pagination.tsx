@@ -79,7 +79,7 @@ const Pages = ({
 
   if (startPage !== 1) {
     renderedPages.push(
-      <PaginationItem>
+      <PaginationItem key="ellipsis-start">
         <PaginationEllipsis />
       </PaginationItem>
     );
@@ -88,6 +88,7 @@ const Pages = ({
   for (let pageNo = startPage; pageNo <= lastPage; pageNo++) {
     renderedPages.push(
       <Page
+        key={pageNo}
         pageNo={pageNo}
         activePageNo={activePage}
         onPageSelect={onPageSelect}
@@ -97,7 +98,7 @@ const Pages = ({
 
   if (lastPage + EXTRA_PAGES_TO_SHOW < totalPages) {
     renderedPages.push(
-      <PaginationItem>
+      <PaginationItem key="ellipsis-end">
         <PaginationEllipsis />
       </PaginationItem>
     );
@@ -115,7 +116,7 @@ const Page = ({
   "activePageNo" | "onPageSelect"
 >) => {
   return (
-    <PaginationItem>
+    <PaginationItem key={pageNo}>
       <PaginationLink
         onClick={() => onPageSelect(pageNo)}
         isActive={pageNo === activePageNo}

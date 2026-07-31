@@ -49,6 +49,22 @@
               $ref: "../components/schemas/common/Error.yaml"
             example:
               error: Username already taken
+  delete:
+    tags: [identity]
+    summary: Delete own account
+    description: >
+      Permanent and irreversible. Authored guides, objectives, edges, media, and
+      review records are anonymized (their author columns become null).
+    operationId: deleteMe
+    security:
+      - bearerAuth: []
+    responses:
+      "204":
+        description: The account was deleted
+      "401":
+        $ref: "../components/responses/_shared.yaml#/Unauthorized"
+      "429":
+        $ref: "../components/responses/_shared.yaml#/RateLimited"
 
 /me/drafts:
   get:

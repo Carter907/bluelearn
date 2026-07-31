@@ -89,10 +89,6 @@ paths:
 
   /objective-revisions/{id}:
     $ref: "./paths/objective-revisions.yaml#/~1objective-revisions~1{id}"
-  /objective-revisions/{id}/targets:
-    $ref: "./paths/objective-revisions.yaml#/~1objective-revisions~1{id}~1targets"
-  /objective-revisions/{id}/targets/{baseId}:
-    $ref: "./paths/objective-revisions.yaml#/~1objective-revisions~1{id}~1targets~1{baseId}"
   /objective-revisions/{id}/nodes/{baseId}:
     $ref: "./paths/objective-revisions.yaml#/~1objective-revisions~1{id}~1nodes~1{baseId}"
   /objective-revisions/{id}/publish:

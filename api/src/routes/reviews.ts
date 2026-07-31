@@ -1,7 +1,11 @@
 import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
 import { createDecisionSchema, paginationSchema } from "@bluelearn/schemas";
-import { requireUser } from "../middleware/auth.middleware";
+import {
+  getAuthenticatedUser,
+  getServiceSupabase,
+  requireUser,
+} from "../middleware/auth.middleware";
 import { rateLimitMiddleware } from "../middleware/rate-limit.middleware";
 import { MODERATION } from "../middleware/rateLimits";
 import type { HonoEnv } from "../types";
@@ -39,9 +43,17 @@ export const reviewsRouter = new Hono<HonoEnv>()
     return c.json({ cases }, 200);
   })
 
-  // Case detail with panel, members, decisions, and linked revision (public)
+  // Case detail with panel, members, decisions, and linked revision (public).
+  // The proposed prerequisites, todos, and subjects come along once the case
+  // closes or beforehand for the author and the seated panel.
   .get("/cases/:id", async (c) => {
-    const result = await getReviewCase(c.get("supabase"), c.req.param("id"));
+    const { user } = await getAuthenticatedUser(c);
+    const result = await getReviewCase(
+      c.get("supabase"),
+      getServiceSupabase(c),
+      c.req.param("id"),
+      user?.id ?? null
+    );
     return c.json(result, 200);
   })
 

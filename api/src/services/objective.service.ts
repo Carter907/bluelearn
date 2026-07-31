@@ -8,7 +8,11 @@ import type {
 import type { Database } from "../database.types";
 import { ServiceError } from "../lib/service-error";
 import { readingMinutes } from "../lib/reading";
-import { getRevisionSnapshot } from "./objective-revision.service";
+import {
+  getRevisionSnapshot,
+  replaceRevisionTags,
+} from "./objective-revision.service";
+import { selectInBatches } from "../lib/batch";
 import { loadUsernames } from "./identity.service";
 
 type DB = SupabaseClient<Database>;
@@ -90,16 +94,27 @@ async function loadGuideBaseMeta(supabase: DB, baseIds: string[]) {
   const map = new Map<string, { slug: string | null; title: string | null }>();
   if (baseIds.length === 0) return map;
 
-  const { data, error } = await supabase
-    .from("guide_bases")
-    .select("id, slug, title")
-    .in("id", baseIds);
+  const { data, error } = await selectInBatches(baseIds, (batch) =>
+    supabase
+      .from("guide_bases")
+      .select(
+        `id, slug,
+         canonical:guides!guide_bases_canonical_guide_id_fkey(
+           current:guide_revisions!guides_current_revision_id_fkey(title)
+         )`
+      )
+      .in("id", batch)
+  );
 
   if (error) {
     console.error(error);
     throw new ServiceError("Failed to load objective guides", 500);
   }
-  for (const b of data ?? []) map.set(b.id, { slug: b.slug, title: b.title });
+  for (const b of data ?? [])
+    map.set(b.id, {
+      slug: b.slug,
+      title: b.canonical?.current?.title ?? null,
+    });
   return map;
 }
 
@@ -107,12 +122,14 @@ async function loadGuideWordCounts(supabase: DB, guideIds: string[]) {
   const map = new Map<string, number>();
   if (guideIds.length === 0) return map;
 
-  const { data, error } = await supabase
-    .from("guides")
-    .select(
-      "id, current:guide_revisions!guides_current_revision_id_fkey(word_count)"
-    )
-    .in("id", guideIds);
+  const { data, error } = await selectInBatches(guideIds, (batch) =>
+    supabase
+      .from("guides")
+      .select(
+        "id, current:guide_revisions!guides_current_revision_id_fkey(word_count)"
+      )
+      .in("id", batch)
+  );
 
   if (error) {
     console.error(error);
@@ -129,16 +146,20 @@ async function loadObjectiveCards(supabase: DB, revisionIds: string[]) {
   if (revisionIds.length === 0) return cards;
 
   const [nodesRes, ordersRes] = await Promise.all([
-    supabase
-      .from("objective_revision_nodes")
-      .select(
-        "revision_id, id, guide_base_id, guide_id, is_featured, is_included"
-      )
-      .in("revision_id", revisionIds),
-    supabase
-      .from("objective_revision_node_orders")
-      .select("revision_id, target_node_id, node_id, position")
-      .in("revision_id", revisionIds),
+    selectInBatches(revisionIds, (batch) =>
+      supabase
+        .from("objective_revision_nodes")
+        .select(
+          "revision_id, id, guide_base_id, guide_id, is_featured, is_included"
+        )
+        .in("revision_id", batch)
+    ),
+    selectInBatches(revisionIds, (batch) =>
+      supabase
+        .from("objective_revision_node_orders")
+        .select("revision_id, target_node_id, node_id, position")
+        .in("revision_id", batch)
+    ),
   ]);
 
   if (nodesRes.error) {
@@ -223,7 +244,8 @@ export async function buildObjectiveListItems(
 }
 
 // List published objectives as cards, newest first. RLS hides drafts from
-// non-authors.
+// non-authors. Slug-less rows are excluded in the query rather than by the
+// caller so total stays in step with the rows on the page.
 export async function listPublishedObjectives(
   supabase: DB,
   { page, limit }: Pagination = { page: 1, limit: 20 }
@@ -238,6 +260,7 @@ export async function listPublishedObjectives(
       { count: "exact" }
     )
     .eq("status", "published")
+    .not("slug", "is", null)
     .order("created_at", { ascending: false })
     .range(from, to);
 
@@ -273,6 +296,11 @@ export async function createObjective(
     console.error(error);
     throw new ServiceError("Failed to create objective", 500);
   }
+
+  if (input.tags && input.tags.length > 0) {
+    await replaceRevisionTags(supabase, revision_id, input.tags);
+  }
+
   return { revision_id };
 }
 

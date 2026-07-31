@@ -1,11 +1,30 @@
-import { useEffect, useMemo, useState } from "react";
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import type {
-  ProfileAPI,
-  ProfileActivityRow,
-  ProfileRole,
-  ProfileStats,
+  ActivityFilters,
+  ActivitySort,
+  ActivityStatusFilter,
+  ActivityTypeFilter,
+  ProfilePageData,
 } from "@/lib/profile";
+import {
+  ACTIVITY_SORTS,
+  ACTIVITY_STATUS_FILTERS,
+  ACTIVITY_TYPE_FILTERS,
+  activityStatusLabel,
+  activityTypeLabel,
+  filterActivity,
+  getInitials,
+  loadProfilePage,
+} from "@/lib/profile";
+import { formatDate } from "@/lib/guideUtils";
+import { cn } from "@/lib/utils";
+import { usePagination } from "@/lib/usePagination";
+import { Pagination } from "@/components/Pagination";
+import {
+  ChoiceColumnFilter,
+  DateColumnFilter,
+  TextColumnFilter,
+} from "@/components/ActivityColumnFilters";
 import { Separator } from "@/components/ui/separator";
 import {
   Table,
@@ -18,221 +37,378 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 
-import { fetchMyProfile } from "@/lib/profile";
 import { Badge } from "@/components/ui/badge";
 
+type ProfileSearch = ActivityFilters & { page?: number };
+
+function validString(value: unknown) {
+  return typeof value === "string" && value ? value : undefined;
+}
+
+function validDate(value: unknown) {
+  return typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value)
+    ? value
+    : undefined;
+}
+
+function validArray(value: unknown, allowed: ReadonlyArray<string>) {
+  const raw = Array.isArray(value)
+    ? value
+    : typeof value === "string"
+      ? [value]
+      : [];
+  return raw.filter(
+    (item): item is string => typeof item === "string" && allowed.includes(item)
+  );
+}
+
 export const Route = createFileRoute("/profile")({
+  ssr: false,
+  validateSearch: (search: Record<string, unknown>): ProfileSearch => {
+    const page = Number(search.page);
+    const type = validArray(
+      search.type,
+      ACTIVITY_TYPE_FILTERS.map((f) => f.value)
+    ) as Array<ActivityTypeFilter>;
+    const status = validArray(
+      search.status,
+      ACTIVITY_STATUS_FILTERS.map((f) => f.value)
+    ) as Array<ActivityStatusFilter>;
+    return {
+      type: type.length ? type : undefined,
+      status: status.length ? status : undefined,
+      title: validString(search.title),
+      summary: validString(search.summary),
+      from: validDate(search.from),
+      to: validDate(search.to),
+      sort: ACTIVITY_SORTS.includes(search.sort as ActivitySort)
+        ? (search.sort as ActivitySort)
+        : undefined,
+      page: Number.isInteger(page) && page > 1 ? page : undefined,
+    };
+  },
+  loader: ({ abortController }) => loadProfilePage(abortController.signal),
   component: RouteComponent,
+  pendingComponent: () => <ProfileMessage>Loading profile...</ProfileMessage>,
+  errorComponent: ({ error }) => (
+    // TODO: improve error component - add greyscale mascot with "X" eyes
+    <ProfileMessage tone="error">{error.message}</ProfileMessage>
+  ),
 });
 
-const DEFAULT_STATS: ProfileStats = {
-  upvotes: undefined,
-  downvotes: undefined,
-  contributions: undefined,
-  reviews: undefined,
-};
-// fucntion for getting the first two letters for the user's initials
-function getInitials(value: string | null | undefined) {
-  const text = value?.trim() ?? "";
-  if (!text) return "?";
-  const parts = text.split(/\s+/);
-  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
-  return (parts[0][0] + parts[1][0]).toUpperCase();
-}
-
-interface ProfilePageProps {
-  profile: ProfileAPI;
-  roles: Array<ProfileRole>;
-  stats?: ProfileStats;
-  activityRows?: Array<ProfileActivityRow>;
-}
-
-function ProfilePage({
-  profile,
-  roles,
-  stats = DEFAULT_STATS,
-  activityRows = [],
-}: ProfilePageProps) {
-  const roleLabel = roles.length > 0 ? roles.join(", ") : "Member";
-
-  const statsRows = useMemo(
-    () => [
-      { label: "Upvote", value: stats.upvotes ?? "—" },
-      { label: "Downvote", value: stats.downvotes ?? "—" },
-      { label: "Contributions", value: stats.contributions ?? "—" },
-      { label: "Reviews", value: stats.reviews ?? "—" },
-    ],
-    [stats]
+function ProfileMessage({
+  children,
+  tone = "muted",
+}: {
+  children: React.ReactNode;
+  tone?: "muted" | "error";
+}) {
+  return (
+    <div className="mx-auto max-w-7xl border-x bg-background px-8 py-10 lg:px-16">
+      <p
+        className={
+          tone === "error"
+            ? "text-sm text-red-600"
+            : "text-sm text-muted-foreground"
+        }
+      >
+        {children}
+      </p>
+    </div>
   );
+}
+
+const PAGE_SIZE = 10;
+
+type ActivityRow = ProfilePageData["activity"][number];
+function rowTarget(row: ActivityRow) {
+  if (row.content_kind === "review")
+    return row.base_slug
+      ? { to: "/guides/$slug", params: { slug: row.base_slug } }
+      : null;
+  if (
+    row.content_kind === "guide" &&
+    row.status === "published" &&
+    row.base_slug
+  )
+    return { to: "/guides/$slug", params: { slug: row.base_slug } };
+  // A draft on a guide that is already published is an edit, not a new guide.
+  if (
+    row.content_kind === "guide" &&
+    row.status === "draft" &&
+    row.revision_id &&
+    row.base_slug &&
+    row.target_slug
+  )
+    return {
+      to: "/guides/$slug/$variantSlug/edit",
+      params: { slug: row.base_slug, variantSlug: row.target_slug },
+      search: { draft: row.revision_id },
+    };
+  if (row.content_kind === "guide" && row.status === "draft" && row.revision_id)
+    return { to: "/contribute", search: { draft: row.revision_id } };
+  if (
+    row.content_kind === "objective" &&
+    row.status === "published" &&
+    row.target_slug
+  )
+    return { to: "/objectives/$slug", params: { slug: row.target_slug } };
+  if (
+    row.content_kind === "objective" &&
+    row.status === "draft" &&
+    row.revision_id
+  )
+    return {
+      to: "/contribute",
+      search: { draft: row.revision_id, kind: "objective" as const },
+    };
+  return null;
+}
+
+function ProfilePage({ profile, roles, stats, activity }: ProfilePageData) {
+  const navigate = useNavigate();
+  const search = Route.useSearch();
+  const setFilters = (next: Partial<ActivityFilters>) =>
+    navigate({
+      to: "/profile",
+      search: (prev) => ({ ...prev, ...next, page: undefined }),
+      replace: true,
+    });
+
+  const filtered = filterActivity(activity, search);
+  const hasFilters = Boolean(
+    search.type?.length ||
+    search.status?.length ||
+    search.title ||
+    search.summary ||
+    search.from ||
+    search.to
+  );
+
+  const {
+    page,
+    totalPages,
+    pageRows,
+    start,
+    goToPage,
+    toFirst,
+    onPrevious,
+    onNext,
+    toLast,
+  } = usePagination(filtered, PAGE_SIZE, {
+    page: search.page ?? 1,
+    onPageChange: (next) =>
+      navigate({
+        to: "/profile",
+        search: (prev) => ({ ...prev, page: next === 1 ? undefined : next }),
+        replace: true,
+      }),
+  });
+
+  // Hide review stat for non-verifiers.
+  const isVerifier = roles.includes("verifier");
+  const statsRows = [
+    { label: "Upvotes", value: stats.upvotes },
+    { label: "Downvotes", value: stats.downvotes },
+    { label: "Contributions", value: stats.contributions },
+    ...(isVerifier ? [{ label: "Reviews", value: stats.reviews }] : []),
+  ];
 
   const initials = getInitials(profile.display_name || profile.username);
 
   return (
     <div className="mx-auto max-w-7xl border-x bg-background">
       <section className="border-b px-8 py-10 lg:px-16">
-        <div className="mb-6 flex flex-col items-center justify-center gap-8 sm:flex-row sm:items-center">
-          <div className="flex flex-col items-center sm:w-1/4">
-            <Avatar className="size-30 bg-gray-500">
-              <AvatarImage className="grayscale" />
-              <AvatarFallback className="bg-gray-300 text-2xl font-bold text-black">
+        <div className="mx-auto mb-6 flex w-full max-w-5xl flex-col items-center gap-8 px-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-center gap-5">
+            <Avatar className="size-28 shrink-0 bg-muted">
+              <AvatarImage />
+              <AvatarFallback className="bg-muted text-2xl font-bold">
                 {initials}
               </AvatarFallback>
             </Avatar>
-            <h2 className="mt-3 mb-1 text-xl font-bold">
-              {profile.display_name ?? profile.username}
-            </h2>
-            <h3 className="text-sm text-gray-600">{roleLabel}</h3>
+
+            <div className="flex flex-col">
+              <h2 className="text-3xl font-bold">
+                {profile.display_name ?? profile.username}
+              </h2>
+              <h3 className="mono-micro text-muted-foreground/80">
+                @{profile.username}
+              </h3>
+
+              {roles.length > 0 && (
+                <ul className="mt-2.5 flex flex-wrap items-center gap-2">
+                  {roles.map((role) => (
+                    <li key={role}>
+                      <Badge
+                        variant="outline"
+                        className="mono-micro rounded-full border border-badge-border bg-badge tracking-[0.08em] text-badge-foreground"
+                      >
+                        {role}
+                      </Badge>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
           </div>
 
-          <div className="w-full sm:w-1/4">
-            <ul className="grid grid-cols-2 grid-rows-2 gap-y-8">
-              {statsRows.map((stat) => (
-                <li key={stat.label} className="flex flex-col items-center">
-                  <h3 className="data-label">{stat.label}</h3>
-                  <p className="data-value">{stat.value}</p>
-                </li>
-              ))}
-            </ul>
-          </div>
+          <ul
+            className={cn(
+              "grid items-start gap-x-6",
+              isVerifier ? "grid-cols-4" : "grid-cols-3"
+            )}
+          >
+            {statsRows.map((stat) => (
+              <li
+                key={stat.label}
+                className="flex min-w-24 flex-col items-center gap-1"
+              >
+                <h3 className="data-label leading-none">{stat.label}</h3>
+                <p className="data-value text-2xl! leading-none">
+                  {stat.value}
+                </p>
+              </li>
+            ))}
+          </ul>
         </div>
 
         <Separator className="mb-8 bg-border" />
+
         <div className="overflow-x-auto">
           <Table className="mx-auto w-full max-w-5xl">
             <TableHeader>
               <TableRow>
-                <TableHead className="px-4 py-3 font-mono text-[14px] tracking-[0.08em] uppercase">
-                  Type
+                <TableHead className="px-4 py-3 font-mono text-[14px] font-bold tracking-[0.08em] uppercase">
+                  <ChoiceColumnFilter
+                    label="Type"
+                    field="type"
+                    options={ACTIVITY_TYPE_FILTERS}
+                    search={search}
+                    setFilters={setFilters}
+                  />
                 </TableHead>
-                <TableHead className="px-4 py-3 font-mono text-[14px] tracking-[0.08em] uppercase">
-                  Title
+                <TableHead className="px-4 py-3 font-mono text-[14px] font-bold tracking-[0.08em] uppercase">
+                  <TextColumnFilter
+                    label="Title"
+                    field="title"
+                    search={search}
+                    setFilters={setFilters}
+                  />
                 </TableHead>
-                <TableHead className="px-4 py-3 font-mono text-[14px] tracking-[0.08em] uppercase">
-                  Change Summary
+                <TableHead className="px-4 py-3 font-mono text-[14px] font-bold tracking-[0.08em] uppercase">
+                  <TextColumnFilter
+                    label="Change Summary"
+                    field="summary"
+                    search={search}
+                    setFilters={setFilters}
+                  />
                 </TableHead>
-                <TableHead className="px-4 py-3 font-mono text-[14px] tracking-[0.08em] uppercase">
-                  Date
+                <TableHead className="px-4 py-3 font-mono text-[14px] font-bold tracking-[0.08em] uppercase">
+                  <DateColumnFilter search={search} setFilters={setFilters} />
                 </TableHead>
-                <TableHead className="px-4 py-3 font-mono text-[14px] tracking-[0.08em] uppercase">
-                  Status
+                <TableHead className="px-4 py-3 font-mono text-[14px] font-bold tracking-[0.08em] uppercase">
+                  <ChoiceColumnFilter
+                    label="Status"
+                    field="status"
+                    options={ACTIVITY_STATUS_FILTERS}
+                    search={search}
+                    setFilters={setFilters}
+                  />
                 </TableHead>
-                <TableHead className="px-4 py-3 font-mono text-[14px] tracking-[0.08em] uppercase">
+                <TableHead className="px-4 py-3 font-mono text-[14px] font-bold tracking-[0.08em] uppercase">
                   Review Case
                 </TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {activityRows.length === 0 ? (
+              {pageRows.length === 0 ? (
                 <TableRow>
                   <TableCell
                     colSpan={6}
                     className="px-4 py-6 text-center text-sm text-muted-foreground"
                   >
-                    No activity available yet.
+                    {hasFilters
+                      ? "No activity matches these filters."
+                      : "No activity available yet."}
                   </TableCell>
                 </TableRow>
               ) : (
-                activityRows.map((data, index) => (
-                  <TableRow
-                    key={`${data.type}-${index}`}
-                    className="cursor-pointer"
-                    onClick={() => {}} // TODO: opens to draft/published guide/variant/objective
-                  >
-                    <TableCell className="px-4 py-3">{data.type}</TableCell>
+                pageRows.map((row, index) => {
+                  const target = rowTarget(row);
+                  return (
+                    <TableRow
+                      key={`${row.content_kind}-${start + index}`}
+                      className={target ? "cursor-pointer" : undefined}
+                      onClick={target ? () => navigate(target) : undefined}
+                    >
+                      <TableCell className="px-4 py-3">
+                        {activityTypeLabel(row)}
+                      </TableCell>
 
-                    <TableCell className="px-4 py-3">{data.title}</TableCell>
+                      <TableCell className="px-4 py-3">{row.title}</TableCell>
 
-                    <TableCell className="px-4 py-3">
-                      {data.change_summary}
-                    </TableCell>
+                      <TableCell className="px-4 py-3">
+                        {row.change_summary}
+                      </TableCell>
 
-                    <TableCell className="mono-micro px-4 py-3">
-                      {data.date}
-                    </TableCell>
+                      <TableCell className="mono-micro px-4 py-3">
+                        {formatDate(new Date(row.created_at))}
+                      </TableCell>
 
-                    <TableCell className="px-4 py-3">
-                      <Badge
-                        variant="outline"
-                        className="mono-micro rounded-full border border-badge-border bg-badge tracking-[0.08em] text-badge-foreground"
-                      >
-                        {data.status}
-                      </Badge>
-                    </TableCell>
+                      <TableCell className="px-4 py-3">
+                        <Badge
+                          variant="outline"
+                          className="mono-micro rounded-full border border-badge-border bg-badge tracking-[0.08em] text-badge-foreground"
+                        >
+                          {activityStatusLabel(row.status)}
+                        </Badge>
+                      </TableCell>
 
-                    <TableCell className="px-4 py-3">
-                      <Button
-                        className="btn-pri"
-                        size="lg"
-                        onClick={() => {}} // TODO: opens review page - guide/variant/objective - with review notes
-                      >
-                        {data.review_case}
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                ))
+                      <TableCell className="px-4 py-3">
+                        {row.review_case_id ? (
+                          <Button
+                            className="btn-pri"
+                            size="lg"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              navigate({
+                                to: "/review/$caseId",
+                                params: { caseId: row.review_case_id! },
+                              });
+                            }}
+                          >
+                            View case
+                          </Button>
+                        ) : null}
+                      </TableCell>
+                    </TableRow>
+                  );
+                })
               )}
             </TableBody>
           </Table>
         </div>
+
+        {totalPages > 1 && (
+          <div className="mt-8">
+            <Pagination
+              activePageNo={page}
+              onPageSelect={goToPage}
+              toFirst={toFirst}
+              onPrevious={onPrevious}
+              onNext={onNext}
+              toLast={toLast}
+              totalPages={totalPages}
+            />
+          </div>
+        )}
       </section>
     </div>
   );
 }
 
 function RouteComponent() {
-  const [profile, setProfile] = useState<ProfileAPI | null>(null);
-  const [roles, setRoles] = useState<Array<ProfileRole>>([]);
-  const [stats, setStats] = useState<ProfileStats>(DEFAULT_STATS);
-  const [activityRows, setActivityRows] = useState<Array<ProfileActivityRow>>(
-    []
-  );
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    fetchMyProfile()
-      .then((result) => {
-        setProfile(result.profile);
-        setRoles(result.roles);
-        setStats(result.stats ?? DEFAULT_STATS);
-        setActivityRows(result.activity ?? []);
-      })
-      .catch((err) => setError(err.message ?? "Unable to load profile."))
-      .finally(() => setLoading(false));
-  }, []);
-
-  if (loading) {
-    return (
-      <div className="mx-auto max-w-7xl border-x bg-background px-8 py-10 lg:px-16">
-        <p className="text-sm text-muted-foreground">Loading profile...</p>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="mx-auto max-w-7xl border-x bg-background px-8 py-10 lg:px-16">
-        <p className="text-sm text-red-600">{error}</p>
-      </div>
-    );
-  }
-
-  if (!profile) {
-    return (
-      <div className="mx-auto max-w-7xl border-x bg-background px-8 py-10 lg:px-16">
-        <p className="text-sm text-muted-foreground">
-          Profile data is unavailable.
-        </p>
-      </div>
-    );
-  }
-
-  return (
-    <ProfilePage
-      profile={profile}
-      roles={roles}
-      stats={stats}
-      activityRows={activityRows}
-    />
-  );
+  const data = Route.useLoaderData();
+  return <ProfilePage {...data} />;
 }

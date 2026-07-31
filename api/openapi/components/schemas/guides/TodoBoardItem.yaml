@@ -14,7 +14,11 @@ properties:
     description: Slug of the dependent guide base (published, so non-null).
     example: calculus
   guide_title:
-    type: string
+    type: [string, "null"]
+    description: >
+      Title of the dependent guide base, read off its canonical guide's live
+      revision. Null while that base has nothing published yet, which an author
+      can see for their own drafts.
     example: Calculus
   title:
     type: string

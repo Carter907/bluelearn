@@ -11,11 +11,22 @@ import type {
   ObjectiveContribution,
   VariantContribution,
 } from "@/types/contributions";
-import type { GuideType, HydratedGuide } from "@/types/guides";
-import { createGuide, listGuides } from "@/lib/api/guides";
+import type { GuideType } from "@/types/guides";
+import type { Guide } from "@bluelearn/schemas";
+import { addGuideVariant, createGuide, listGuides } from "@/lib/api/guides";
 import { getMyIdentity } from "@/lib/api/identity";
 import { listSubjects } from "@/lib/api/subjects";
-import { submitRevision, updateRevision } from "@/lib/api/guideRevisions";
+import { createObjective } from "@/lib/api/objectives";
+import {
+  getObjectiveRevision,
+  submitObjectiveRevision,
+  updateObjectiveRevision,
+} from "@/lib/api/objectiveRevisions";
+import {
+  getRevision,
+  submitRevision,
+  updateRevision,
+} from "@/lib/api/guideRevisions";
 import { uploadMedia } from "@/lib/api/media";
 import { estimateReadMinutes, formatDate } from "@/lib/guideUtils";
 
@@ -34,6 +45,8 @@ import { PreviewObjective } from "@/components/contribute/steps/PreviewObjective
 type PropTypes = {
   type: ContributionType | null;
   setType: (value: ContributionType) => void;
+  draftId?: string;
+  draftKind?: "guide" | "objective";
 };
 
 const createGuideContData = (): GuideContribution => ({
@@ -53,6 +66,7 @@ const createVariantContData = (): VariantContribution => ({
   summary: "",
   baseGuide: "",
   subjects: [],
+  newSubjects: [],
   body: "",
 });
 
@@ -60,11 +74,27 @@ const createObjectiveContData = (): ObjectiveContribution => ({
   title: "",
   summary: "",
   targets: [],
-  featured: "",
+  featuredSubObjective: "",
   subObjectives: [],
+  subjects: [],
 });
 
-export default function ContributionFlow({ type, setType }: PropTypes) {
+type NewSubject = { id?: string; name: string; summary: string };
+
+const existingTagIds = (newSubjects: Array<NewSubject>) =>
+  newSubjects.map((s) => s.id).filter((id): id is string => !!id);
+
+const unsavedSubjects = (newSubjects: Array<NewSubject>) =>
+  newSubjects
+    .filter((s) => !s.id)
+    .map((s) => ({ name: s.name, summary: s.summary || null }));
+
+export default function ContributionFlow({
+  type,
+  setType,
+  draftId,
+  draftKind,
+}: PropTypes) {
   const [guideContData, setGuideContData] =
     useState<GuideContribution>(createGuideContData);
   const [variantContData, setVariantContData] = useState<VariantContribution>(
@@ -91,6 +121,8 @@ export default function ContributionFlow({ type, setType }: PropTypes) {
           stepper={stepper}
           type={type}
           setType={setType}
+          draftId={draftId}
+          draftKind={draftKind}
           guideContData={guideContData}
           setGuideContData={setGuideContData}
           variantContData={variantContData}
@@ -108,6 +140,8 @@ function Inner({
   stepper,
   type,
   setType,
+  draftId,
+  draftKind,
   guideContData,
   setGuideContData,
   variantContData,
@@ -119,6 +153,8 @@ function Inner({
   stepper: any;
   type: ContributionType | null;
   setType: (value: ContributionType) => void;
+  draftId?: string;
+  draftKind?: "guide" | "objective";
 
   guideContData: GuideContribution;
   setGuideContData: Dispatch<SetStateAction<GuideContribution>>;
@@ -132,6 +168,8 @@ function Inner({
     if (type !== value) {
       setGuideContData(createGuideContData());
       setObjectiveContData(createObjectiveContData());
+      setVariantContData(createVariantContData());
+      setRevisionId(null);
       setType(value);
     }
 
@@ -154,6 +192,104 @@ function Inner({
   const [revisionId, setRevisionId] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
+  // Resume a draft opened from the profile.
+  const resumedRef = useRef(false);
+  useEffect(() => {
+    if (!draftId || resumedRef.current) return;
+    resumedRef.current = true;
+
+    if (draftKind === "objective") {
+      getObjectiveRevision(draftId)
+        .then((data) => {
+          const slugByNodeId = new Map(
+            data.snapshot.nodes.map((n) => [n.id, n.slug])
+          );
+          const targetNodes = data.snapshot.nodes
+            .filter(
+              (n): n is typeof n & { slug: string } => n.is_target && !!n.slug
+            )
+            .sort(
+              (a, b) => (a.target_position ?? 0) - (b.target_position ?? 0)
+            );
+
+          setObjectiveContData({
+            title: data.revision.title ?? "",
+            summary: data.revision.summary ?? "",
+            targets: targetNodes.map((n) => n.slug),
+            featuredSubObjective:
+              targetNodes.find((n) => n.is_featured)?.slug ?? "",
+            // An uncurated target is left out, so the order step still seeds it
+            // on draft resume.
+            subObjectives: targetNodes.flatMap((n) => {
+              const sequence = data.snapshot.orders
+                .filter((o) => o.target_node_id === n.id)
+                .map((o) => slugByNodeId.get(o.node_id))
+                .filter((slug): slug is string => !!slug);
+              if (sequence.length === 0) return [];
+              return [
+                {
+                  targetSlug: n.slug,
+                  selectedSlugs: sequence,
+                  curatedSequence: sequence,
+                },
+              ];
+            }),
+            subjects: data.subjects.map((s) => s.id),
+          });
+          setRevisionId(draftId);
+          setType("objective");
+          requestAnimationFrame(() => stepper.goTo("objective-details"));
+        })
+        .catch(() => {
+          toast.error("Could not load draft");
+        });
+      return;
+    }
+
+    getRevision(draftId)
+      .then((data) => {
+        // A tag still awaiting approval is not pickable yet, so it resumes in
+        // the new-subject list rather than the picker.
+        const tagged = data.subjects
+          .filter((s) => s.status === "published")
+          .map((s) => s.id);
+        const pending = data.subjects
+          .filter((s) => s.status !== "published")
+          .map((s) => ({ id: s.id, name: s.name, summary: s.summary ?? "" }));
+
+        if (data.is_variant) {
+          setVariantContData({
+            type: data.knowledge_type ?? "",
+            title: data.revision.title ?? "",
+            summary: data.revision.summary ?? "",
+            body: data.revision.body ?? "",
+            baseGuide: data.base_slug ?? "",
+            subjects: tagged,
+            newSubjects: pending,
+          });
+        } else {
+          setGuideContData({
+            type: data.knowledge_type ?? "theoretical",
+            title: data.revision.title ?? "",
+            summary: data.revision.summary ?? "",
+            body: data.revision.body ?? "",
+            subjects: tagged,
+            newSubjects: pending,
+            prereqs: data.prerequisites,
+            todoPrereqs: data.todos,
+          });
+        }
+        setRevisionId(draftId);
+        setType(data.is_variant ? "variant" : "guide");
+        requestAnimationFrame(() =>
+          stepper.goTo(data.is_variant ? "variant-details" : "guide-details")
+        );
+      })
+      .catch(() => {
+        toast.error("Could not load draft");
+      });
+  }, [draftId]);
+
   const [subjectOptions, setSubjectOptions] = useState<
     Awaited<ReturnType<typeof listSubjects>>
   >([]);
@@ -169,9 +305,11 @@ function Inner({
     listSubjects(opts)
       .then(setSubjectOptions)
       .catch(() => {});
+
     listGuides(opts)
       .then(setGuideOptions)
       .catch(() => {});
+
     getMyIdentity(opts)
       .then((data) => setUsername(data.profile.username))
       .catch(() => {});
@@ -179,11 +317,11 @@ function Inner({
     return () => controller.abort();
   }, []);
 
-  // Shape the in-progress form as a HydratedGuide, so the submit step can render
-  // it with the same component the published page uses.
-  const previewGuide: HydratedGuide = useMemo(() => {
-    const nameBySlug = new Map(
-      subjectOptions.map((s) => [s.slug, s.name] as const)
+  // Shape the in-progress form as a Guide, so the submit step can render it with
+  // the same component the published page uses.
+  const previewGuide: Guide = useMemo(() => {
+    const nameById = new Map(
+      subjectOptions.map((s) => [s.id, s.name] as const)
     );
     const titleBySlug = new Map(
       guideOptions
@@ -193,20 +331,17 @@ function Inner({
 
     return {
       slug: "",
-      title: guideContData.title
-        ? guideContData.title
-        : variantContData.title
-          ? variantContData.title
-          : "Untitled guide",
+      variant_slug: null,
+      title: guideContData.title || "Untitled guide",
       author: username ?? "You",
       summary: guideContData.summary,
+      body: guideContData.body,
+      duration_minutes: estimateReadMinutes(guideContData.body),
       created_at: formatDate(new Date()),
-      duration: estimateReadMinutes(guideContData.body),
-      breadcrumbs: [],
       tags: [
-        ...guideContData.subjects.map((slug) => ({
-          slug,
-          name: nameBySlug.get(slug) ?? slug,
+        ...guideContData.subjects.map((id) => ({
+          slug: id,
+          name: nameById.get(id) ?? id,
         })),
         ...guideContData.newSubjects.map((s) => ({
           slug: s.name,
@@ -217,9 +352,36 @@ function Inner({
         slug,
         title: titleBySlug.get(slug) ?? slug,
       })),
-      content: guideContData.body,
     };
   }, [guideContData, subjectOptions, guideOptions, username]);
+
+  const previewVariant: Guide = useMemo(() => {
+    const nameById = new Map(
+      subjectOptions.map((s) => [s.id, s.name] as const)
+    );
+
+    return {
+      slug: "",
+      variant_slug: null,
+      title: variantContData.title || "Untitled guide",
+      author: username ?? "You",
+      summary: variantContData.summary,
+      body: variantContData.body,
+      created_at: formatDate(new Date()),
+      duration_minutes: estimateReadMinutes(variantContData.body),
+      tags: [
+        ...variantContData.subjects.map((id) => ({
+          slug: id,
+          name: nameById.get(id) ?? id,
+        })),
+        ...variantContData.newSubjects.map((s) => ({
+          slug: s.name,
+          name: s.name,
+        })),
+      ],
+      prerequisites: [],
+    };
+  }, [variantContData, subjectOptions, username]);
 
   const guideType: GuideType | undefined =
     guideContData.type === "practical" || guideContData.type === "theoretical"
@@ -230,28 +392,114 @@ function Inner({
     title: guideContData.title || null,
     summary: guideContData.summary || null,
     body: guideContData.body || null,
-    tags: guideContData.subjects,
+    tags: [
+      ...guideContData.subjects,
+      ...existingTagIds(guideContData.newSubjects),
+    ],
     prerequisites: guideContData.prereqs,
-    newSubjects: guideContData.newSubjects.map((s) => ({
-      name: s.name,
-      summary: s.summary || null,
-    })),
+    newSubjects: unsavedSubjects(guideContData.newSubjects),
     todoPrereqs: guideContData.todoPrereqs,
   });
 
+  const variantDraftFields = () => ({
+    title: variantContData.title || null,
+    summary: variantContData.summary || null,
+    body: variantContData.body || null,
+    tags: [
+      ...variantContData.subjects,
+      ...existingTagIds(variantContData.newSubjects),
+    ],
+    newSubjects: unsavedSubjects(variantContData.newSubjects),
+  });
+
+  // The wizard tracks guides by slug; the API keys curation on guide base ids.
+  const baseIdForSlug = (slug: string) => {
+    const guide = guideOptions.find((g) => g.slug === slug);
+    if (!guide) throw new Error(`Target guide not found: ${slug}`);
+    return guide.id;
+  };
+
+  // Target order comes from the array, so this sends them in wizard order. A
+  // target the curator has not sequenced yet goes without one, which leaves the
+  // curation under it alone rather than emptying it.
+  const objectiveTargets = () =>
+    objectiveContData.targets.map((slug) => {
+      const sub = objectiveContData.subObjectives.find(
+        (s) => s.targetSlug === slug
+      );
+      return {
+        guide_base_id: baseIdForSlug(slug),
+        is_featured: objectiveContData.featuredSubObjective === slug,
+        ...(sub ? { sequence: sub.curatedSequence.map(baseIdForSlug) } : {}),
+      };
+    });
+
   const creatingRef = useRef<Promise<string> | null>(null);
   const persistDraft = async () => {
+    if (type === "objective") {
+      const target_ids = objectiveContData.targets.map(baseIdForSlug);
+
+      if (target_ids.length === 0) {
+        throw new Error(
+          "Learning objectives require at least one target guide."
+        );
+      }
+
+      if (revisionId) {
+        await updateObjectiveRevision(revisionId, {
+          title: objectiveContData.title || undefined,
+          summary: objectiveContData.summary || undefined,
+          tags: objectiveContData.subjects,
+          targets: objectiveTargets(),
+        });
+        return revisionId;
+      }
+
+      if (!creatingRef.current) {
+        creatingRef.current = createObjective({
+          title: objectiveContData.title || undefined,
+          summary: objectiveContData.summary || undefined,
+          target_ids,
+          tags: objectiveContData.subjects,
+        })
+          .then(async (id) => {
+            // Creation only seeds the closure, so the curation has to update
+            // before publish.
+            await updateObjectiveRevision(id, { targets: objectiveTargets() });
+            setRevisionId(id);
+            return id;
+          })
+          .finally(() => {
+            creatingRef.current = null;
+          });
+      }
+      return creatingRef.current;
+    }
+
     if (revisionId) {
-      await updateRevision(revisionId, draftFields());
+      await updateRevision(
+        revisionId,
+        type === "guide" ? draftFields() : variantDraftFields()
+      );
       return revisionId;
     }
 
+    if (type === "variant" && !variantContData.baseGuide) {
+      throw new Error("Pick a base guide before saving");
+    }
+
     if (!creatingRef.current) {
-      creatingRef.current = createGuide({
-        knowledge_type:
-          guideContData.type === "practical" ? "practical" : "theoretical",
-        ...draftFields(),
-      })
+      creatingRef.current = (
+        type === "guide"
+          ? createGuide({
+              knowledge_type:
+                guideContData.type === "practical"
+                  ? "practical"
+                  : "theoretical",
+              ...draftFields(),
+            })
+          : addGuideVariant(variantContData.baseGuide, variantDraftFields())
+      )
         .then((id) => {
           setRevisionId(id);
           return id;
@@ -267,6 +515,7 @@ function Inner({
   const uploadGuideImage = async (file: File) => {
     try {
       const id = revisionId ?? (await persistDraft());
+      if (!id) throw new Error("Failed to save draft before uploading image");
       const { url } = await uploadMedia(file, id);
       return url;
     } catch (e) {
@@ -287,14 +536,44 @@ function Inner({
     }
   };
 
+  const missingObjectiveFields = () => {
+    const missing: Array<string> = [];
+    if (!objectiveContData.title.trim()) missing.push("a title");
+    if (!objectiveContData.summary.trim()) missing.push("a summary");
+    if (objectiveContData.subjects.length === 0) missing.push("a subject");
+    if (objectiveContData.targets.length === 0) missing.push("a target guide");
+    else if (!objectiveContData.featuredSubObjective)
+      missing.push("a featured sub-objective");
+    return missing;
+  };
+
   const publish = async () => {
     setSubmitting(true);
     try {
+      if (type === "objective") {
+        const missing = missingObjectiveFields();
+        if (missing.length > 0) {
+          throw new Error(`Your objective is missing ${missing.join(", ")}`);
+        }
+      }
+
       const id = await persistDraft();
-      await submitRevision(id);
-      toast.success("Submitted for review");
+      if (!id) throw new Error("Failed to save draft before publishing");
+      if (type === "objective") {
+        await submitObjectiveRevision(id);
+        toast.success("Objective published");
+      } else {
+        await submitRevision(id);
+        toast.success("Submitted for review");
+      }
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Could not submit");
+      toast.error(
+        e instanceof Error
+          ? e.message
+          : type === "objective"
+            ? "Could not publish"
+            : "Could not submit"
+      );
     } finally {
       setSubmitting(false);
     }
@@ -342,6 +621,8 @@ function Inner({
           Stepper={Stepper}
           variantContData={variantContData}
           setVariantContData={setVariantContData}
+          guides={guideOptions}
+          subjects={subjectOptions}
           onSaveDraft={saveDraft}
           submitting={submitting}
         />
@@ -350,12 +631,19 @@ function Inner({
           Stepper={Stepper}
           objectiveContData={objectiveContData}
           setObjectiveContData={setObjectiveContData}
+          subjects={subjectOptions}
+          guides={guideOptions}
+          onSaveDraft={saveDraft}
+          submitting={submitting}
         />
 
         <OrderTargetGuides
           Stepper={Stepper}
           objectiveContData={objectiveContData}
           setObjectiveContData={setObjectiveContData}
+          onSaveDraft={saveDraft}
+          submitting={submitting}
+          guides={guideOptions}
         />
 
         <Content
@@ -376,20 +664,28 @@ function Inner({
           Stepper={Stepper}
           objectiveContData={objectiveContData}
           setObjectiveContData={setObjectiveContData}
+          onSaveDraft={saveDraft}
+          submitting={submitting}
+          guides={guideOptions}
         />
 
         <PreviewGuide
           Stepper={Stepper}
-          guide={previewGuide}
-          guideType={guideType}
+          guide={type === "guide" ? previewGuide : previewVariant}
+          guideType={type === "guide" ? guideType : undefined}
           onSaveDraft={saveDraft}
           onPublish={publish}
           submitting={submitting}
         />
+
         <PreviewObjective
           Stepper={Stepper}
+          objectiveContData={objectiveContData}
+          onSaveDraft={saveDraft}
           onPublish={publish}
           submitting={submitting}
+          guideOptions={guideOptions}
+          subjectOptions={subjectOptions}
         />
       </div>
     </div>

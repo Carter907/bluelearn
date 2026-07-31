@@ -4,7 +4,6 @@ import {
   objectiveSummarySchema,
   objectiveTitleSchema,
 } from "./fields";
-import { subjectSlugSchema } from "../subjects";
 
 // Create a draft objective. The objective is built to reach target_ids (at least one
 // goal); title is optional at creation and only required to publish.
@@ -12,16 +11,30 @@ export const createObjectiveSchema = z.object({
   title: objectiveTitleSchema.nullish(),
   summary: objectiveSummarySchema.nullish(),
   target_ids: z.array(z.uuid()).min(1),
+  tags: z.array(z.uuid()).default([]),
+});
+
+// One goal in the objective's curation. Position comes from the array index, so
+// the client sends targets in the order it wants them. `sequence` is the topics
+// placed under this goal in reading order; leaving it off every target means the
+// target set changed but the curation under it did not.
+export const objectiveTargetSchema = z.object({
+  guide_base_id: z.uuid(),
+  is_featured: z.boolean().default(false),
+  sequence: z.array(z.uuid()).optional(),
 });
 
 // Overwrite a draft revision's metadata. Partial: send only the fields you want
-// to change (at least one).
+// to change (at least one). `targets` is declarative and replaces the whole
+// target set: a target's position and the featured flag are unique per revision,
+// so they cannot be moved one row at a time without tripping a constraint.
 export const updateObjectiveRevisionSchema = z
   .object({
     title: objectiveTitleSchema,
     summary: objectiveSummarySchema.nullish(),
     change_summary: objectiveChangeSummarySchema.nullish(),
-    tags: z.array(subjectSlugSchema),
+    tags: z.array(z.uuid()),
+    targets: z.array(objectiveTargetSchema).min(1),
   })
   .partial()
   .refine((v) => Object.keys(v).length > 0, {
@@ -44,6 +57,7 @@ export const updateObjectiveNodeSchema = z
   });
 
 export type CreateObjectiveInput = z.infer<typeof createObjectiveSchema>;
+export type ObjectiveTargetInput = z.infer<typeof objectiveTargetSchema>;
 export type UpdateObjectiveRevisionInput = z.infer<
   typeof updateObjectiveRevisionSchema
 >;

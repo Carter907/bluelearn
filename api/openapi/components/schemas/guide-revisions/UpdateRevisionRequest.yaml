@@ -15,10 +15,12 @@ properties:
     example: Clarified the chain rule section.
   tags:
     type: array
-    description: Full replacement set of subject slugs.
+    description: >-
+      Full replacement set of subject ids. Ids, not slugs, because a subject
+      proposed inline has no slug until it is approved.
     items:
       type: string
-    example: [calculus]
+      format: uuid
   prerequisites:
     type: array
     description: Full replacement set of prerequisite guide slugs.

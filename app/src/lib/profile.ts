@@ -1,117 +1,182 @@
-export const apiBase = import.meta.env.VITE_API_BASE ?? "http://localhost:8787";
+import { getMyActivity, getMyIdentity, getMyStats } from "@/lib/api/identity";
 
-export type ProfileAPI = {
-  username: string;
-  display_name: string | null;
-  created_at: string;
-};
-
-export type ProfileRole = string;
-
-export type ProfileActivityRow = {
-  type: string;
-  title: string;
-  change_summary: string;
-  date: string;
-  status: string;
-  review_case: string;
-};
-
-export type ProfileStats = {
-  upvotes?: number;
-  downvotes?: number;
-  contributions?: number;
-  reviews?: number;
-};
-
-export type ProfilePageData = {
-  profile: ProfileAPI;
-  roles: Array<ProfileRole>;
-  stats?: ProfileStats;
-  activity?: Array<ProfileActivityRow>;
-};
-
-const FALLBACK_PROFILE_DATA: ProfilePageData = {
-  profile: {
-    username: "demo_user",
-    display_name: "Demo User",
-    created_at: new Date().toISOString(),
-  },
-  roles: ["Admin"],
-  stats: {
-    upvotes: 27,
-    downvotes: 3,
-    contributions: 12,
-    reviews: 8,
-  },
-  activity: [
-    {
-      type: "Guide creation",
-      title: "How to guide title here",
-      change_summary: "Drafted a new learning guide",
-      date: "07-12-2026",
-      status: "In review",
-      review_case: "View case",
-    },
-    {
-      type: "Objective revision",
-      title: "Objective title here",
-      change_summary: "Updated the learning objective summary",
-      date: "07-11-2026",
-      status: "Approved",
-      review_case: "View case",
-    },
-    {
-      type: "Guide creation",
-      title: "How to guide title here",
-      change_summary: "Added a new variant for the content",
-      date: "07-10-2026",
-      status: "Pending",
-      review_case: "View case",
-    },
-    {
-      type: "Variant revision",
-      title: "How to guide title here",
-      change_summary: "Added a new variant for the content",
-      date: "07-10-2026",
-      status: "Pending",
-      review_case: "View case",
-    },
-    {
-      type: "Objective creation",
-      title: "How to guide title here",
-      change_summary: "Added a new variant for the content",
-      date: "07-10-2026",
-      status: "Pending",
-      review_case: "View case",
-    },
-    {
-      type: "Objective revision",
-      title: "How to guide title here",
-      change_summary: "Added a new variant for the content",
-      date: "07-10-2026",
-      status: "Pending",
-      review_case: "View case",
-    },
-  ],
-};
-
-export async function fetchMyProfile(): Promise<ProfilePageData> {
-  try {
-    const response = await fetch(`${apiBase}/me`);
-    if (!response.ok) {
-      throw new Error(`Failed to load profile: ${response.statusText}`);
-    }
-
-    const data = (await response.json()) as Partial<ProfilePageData>;
-
-    return {
-      profile: data.profile ?? FALLBACK_PROFILE_DATA.profile,
-      roles: data.roles ?? FALLBACK_PROFILE_DATA.roles,
-      stats: data.stats ?? FALLBACK_PROFILE_DATA.stats,
-      activity: data.activity ?? FALLBACK_PROFILE_DATA.activity,
-    };
-  } catch {
-    return FALLBACK_PROFILE_DATA;
-  }
+export async function loadProfilePage(signal?: AbortSignal) {
+  const [identity, stats, activity] = await Promise.all([
+    getMyIdentity({ signal }),
+    getMyStats({ signal }),
+    getMyActivity({ signal }),
+  ]);
+  return {
+    profile: identity.profile,
+    roles: identity.roles,
+    stats,
+    activity,
+  };
 }
+
+// Everything the page renders, inferred from the loader so it tracks the API.
+export type ProfilePageData = Awaited<ReturnType<typeof loadProfilePage>>;
+type ActivityRow = ProfilePageData["activity"][number];
+
+export type ActivityTypeFilter =
+  | "guide_creation"
+  | "guide_revision"
+  | "variant_creation"
+  | "variant_revision"
+  | "objective_creation"
+  | "objective_revision"
+  | "review";
+
+const TYPE_LABELS: Record<ActivityTypeFilter, string> = {
+  guide_creation: "Guide creation",
+  guide_revision: "Guide revision",
+  variant_creation: "Variant creation",
+  variant_revision: "Variant revision",
+  objective_creation: "Objective creation",
+  objective_revision: "Objective revision",
+  review: "Review",
+};
+
+// Collapse a row down to one of the labelled type buckets.
+export function activityTypeKey(row: ActivityRow): ActivityTypeFilter {
+  if (row.content_kind === "review") return "review";
+  if (row.content_kind === "objective")
+    return row.is_creation ? "objective_creation" : "objective_revision";
+  if (row.is_variant)
+    return row.is_creation ? "variant_creation" : "variant_revision";
+  return row.is_creation ? "guide_creation" : "guide_revision";
+}
+
+export function activityTypeLabel(row: ActivityRow): string {
+  return TYPE_LABELS[activityTypeKey(row)];
+}
+
+export const ACTIVITY_TYPE_FILTERS = (
+  Object.keys(TYPE_LABELS) as Array<ActivityTypeFilter>
+).map((value) => ({ value, label: TYPE_LABELS[value] }));
+
+const STATUS_LABELS: Record<ActivityRow["status"], string> = {
+  draft: "Draft",
+  submitted: "Submitted",
+  pending: "Pending",
+  in_review: "In review",
+  approved: "Approved",
+  rejected: "Rejected",
+  published: "Published",
+};
+
+export function activityStatusLabel(status: ActivityRow["status"]): string {
+  return STATUS_LABELS[status];
+}
+
+// Group raw statuses into easily accessible and understandable buckets.
+const STATUS_BUCKETS = {
+  draft: ["draft"],
+  in_review: ["submitted", "pending", "in_review"],
+  published: ["approved", "published"],
+  rejected: ["rejected"],
+} as const satisfies Record<string, ReadonlyArray<ActivityRow["status"]>>;
+
+export type ActivityStatusFilter = keyof typeof STATUS_BUCKETS;
+
+export const ACTIVITY_STATUS_FILTERS: Array<{
+  value: ActivityStatusFilter;
+  label: string;
+}> = [
+  { value: "draft", label: "Draft" },
+  { value: "in_review", label: "In review" },
+  { value: "published", label: "Published" },
+  { value: "rejected", label: "Rejected" },
+];
+
+export type ActivitySort =
+  | "title_asc"
+  | "title_desc"
+  | "summary_asc"
+  | "summary_desc"
+  | "date_asc";
+
+export const ACTIVITY_SORTS: ReadonlyArray<ActivitySort> = [
+  "title_asc",
+  "title_desc",
+  "summary_asc",
+  "summary_desc",
+  "date_asc",
+];
+
+export type ActivityFilters = {
+  type?: Array<ActivityTypeFilter>;
+  status?: Array<ActivityStatusFilter>;
+  title?: string;
+  summary?: string;
+  from?: string;
+  to?: string;
+  sort?: ActivitySort;
+};
+
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+// Parse a yyyy-mm-dd bound as local midnight, matching how the UI stores it.
+// new Date("yyyy-mm-dd") would read it as UTC and shift the window by the offset.
+function localDayMs(value: string): number {
+  const [year, month, day] = value.split("-").map(Number);
+  return new Date(year, month - 1, day).getTime();
+}
+
+const SORTERS: Record<
+  ActivitySort,
+  (a: ActivityRow, b: ActivityRow) => number
+> = {
+  title_asc: (a, b) => a.title.localeCompare(b.title),
+  title_desc: (a, b) => b.title.localeCompare(a.title),
+  summary_asc: (a, b) =>
+    (a.change_summary ?? "").localeCompare(b.change_summary ?? ""),
+  summary_desc: (a, b) =>
+    (b.change_summary ?? "").localeCompare(a.change_summary ?? ""),
+  date_asc: (a, b) => +new Date(a.created_at) - +new Date(b.created_at),
+};
+
+export function filterActivity(
+  rows: Array<ActivityRow>,
+  { type, status, title, summary, from, to, sort }: ActivityFilters
+): Array<ActivityRow> {
+  const titleNeedle = title?.trim().toLowerCase();
+  const summaryNeedle = summary?.trim().toLowerCase();
+  const types = type?.length ? new Set(type) : null;
+  // expand each status bucket back to the raw statuses it covers
+  const statuses = status?.length
+    ? new Set(status.flatMap((s) => STATUS_BUCKETS[s]))
+    : null;
+  const fromMs = from ? localDayMs(from) : null;
+  // 'to' is a whole day, so include everything before the next midnight
+  const toMs = to ? localDayMs(to) + DAY_MS : null;
+
+  const matched = rows.filter((row) => {
+    if (types && !types.has(activityTypeKey(row))) return false;
+    if (statuses && !statuses.has(row.status)) return false;
+    if (titleNeedle && !row.title.toLowerCase().includes(titleNeedle))
+      return false;
+    if (
+      summaryNeedle &&
+      !(row.change_summary ?? "").toLowerCase().includes(summaryNeedle)
+    )
+      return false;
+    if (fromMs !== null || toMs !== null) {
+      const t = new Date(row.created_at).getTime();
+      if (fromMs !== null && t < fromMs) return false;
+      if (toMs !== null && t >= toMs) return false;
+    }
+    return true;
+  });
+
+  return sort ? [...matched].sort(SORTERS[sort]) : matched;
+}
+
+// fucntion for getting the first two letters for the user's initials
+export const getInitials = (value: string | null | undefined) => {
+  const text = value?.trim() ?? "";
+  if (!text) return "?";
+  const parts = text.split(/\s+/);
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return (parts[0][0] + parts[1][0]).toUpperCase();
+};

@@ -11,10 +11,12 @@ export const CollapsibleSection = ({
   title,
   defaultOpen,
   children,
+  containerStyles = "border-b py-4",
 }: {
   title: React.ReactNode;
   defaultOpen?: boolean;
   children: React.ReactNode;
+  containerStyles?: string;
 }) => {
   const [open, setOpen] = useState(defaultOpen ?? false);
 
@@ -23,16 +25,16 @@ export const CollapsibleSection = ({
       defaultOpen={defaultOpen}
       open={open}
       onOpenChange={setOpen}
-      className="group border-b py-4"
+      className={`group ${containerStyles}`}
     >
       <CollapsibleTrigger asChild>
-        <div className="data-label flex w-full cursor-pointer list-none items-center">
+        <div className="data-label flex w-full cursor-pointer list-none items-center justify-between">
+          <p>{title}</p>
           <ChevronRight
             className={`h-4 w-4 transition-transform ${
               open ? "rotate-90" : ""
             }`}
           />
-          {title}
         </div>
       </CollapsibleTrigger>
 

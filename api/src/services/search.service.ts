@@ -9,7 +9,7 @@ import type { Database } from "../database.types";
 // .ts extension so scripts/typesense-sync.ts stays runnable under plain
 // `node --experimental-strip-types` (extensionless relative imports fail there).
 import { ServiceError } from "../lib/service-error";
-import { buildGuideListItems } from "./guide.service";
+import { buildGuideListItems, PUBLISHED_GUIDE_SELECT } from "./guide.service";
 import { buildObjectiveListItems } from "./objective.service";
 import type { Bindings, HonoEnv } from "../types";
 
@@ -71,25 +71,12 @@ export function stripNulls<T extends object>(item: T): T {
   return doc;
 }
 
-// Same select listPublishedGuides uses, so buildGuideListItems (author,
-// knowledge_type, tags, duration_minutes) can be reused as-is.
-export const SEARCH_DOC_SELECT =
-  `id, slug, title, knowledge_type, status, created_at,
-  canonical:guides!guide_bases_canonical_guide_id_fkey!inner(
-    author_id,
-    current:guide_revisions!guides_current_revision_id_fkey!inner(
-      id, summary, word_count
-    )
-  )` as const;
-
-// Map a SEARCH_DOC_SELECT row to its Typesense document. Returns null for
-// rows missing slug/title (nullable in the generated types, never null for
-// published guides) — skip those rather than indexing them.
+// Map a published_guides row to its Typesense document.
 export async function rowToGuideDocument(
   supabase: DB,
   row: GuideRow
 ): Promise<GuideListItem | null> {
-  if (!row.slug || !row.title) return null;
+  if (!row.base_slug || !row.title) return null;
   const [item] = await buildGuideListItems(supabase, [row]);
   return stripNulls(item);
 }
@@ -258,8 +245,8 @@ async function pushDocument(
 // Bring one guide's Typesense document in line with its DB state: upsert when
 // published, delete otherwise. Best-effort — a stale index must never fail
 // the request (log and move on); scripts/typesense-sync.ts --force repairs
-// any drift. RLS hides unpublished bases from most callers, so an invisible
-// row also reads as "not published" and falls through to delete.
+// any drift. The view only holds published bases and RLS hides the rest, so a
+// missing row reads as "not published" and falls through to delete.
 export async function syncGuideDocument(
   env: Bindings,
   supabase: DB,
@@ -267,16 +254,13 @@ export async function syncGuideDocument(
 ) {
   try {
     const { data, error } = await supabase
-      .from("guide_bases")
-      .select(SEARCH_DOC_SELECT)
+      .from("published_guides")
+      .select(PUBLISHED_GUIDE_SELECT)
       .eq("id", guideBaseId)
       .maybeSingle();
     if (error) throw new Error(error.message);
 
-    const doc =
-      data?.status === "published"
-        ? await rowToGuideDocument(supabase, data)
-        : null;
+    const doc = data ? await rowToGuideDocument(supabase, data) : null;
     await pushDocument(env, GUIDES_COLLECTION, guideBaseId, doc);
   } catch (error) {
     console.error(`Search sync failed for guide ${guideBaseId}:`, error);

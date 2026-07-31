@@ -12,7 +12,12 @@ export async function listOpenTodos(supabase: DB) {
     .from("todo_prerequisites")
     .select(
       `id, dependent_guide_base_id, title, status, created_at,
-       base:guide_bases!todo_prerequisites_dependent_guide_base_id_fkey!inner(slug, title)`
+       base:guide_bases!todo_prerequisites_dependent_guide_base_id_fkey!inner(
+         slug,
+         canonical:guides!guide_bases_canonical_guide_id_fkey(
+           current:guide_revisions!guides_current_revision_id_fkey(title)
+         )
+       )`
     )
     .eq("status", "open");
 
@@ -25,7 +30,7 @@ export async function listOpenTodos(supabase: DB) {
     id: row.id,
     guide_base_id: row.dependent_guide_base_id,
     guide_slug: row.base.slug,
-    guide_title: row.base.title,
+    guide_title: row.base.canonical?.current?.title ?? null,
     title: row.title,
     status: row.status,
     created_at: row.created_at,

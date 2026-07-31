@@ -2,6 +2,9 @@ type: object
 additionalProperties: false
 description: One topic in an objective revision (included or skipped).
 properties:
+  id:
+    description: The node's own id, which the revision's order rows point at.
+    $ref: "../common/Uuid.yaml"
   guide_base_id:
     $ref: "../common/Uuid.yaml"
   guide_id:
@@ -25,7 +28,26 @@ properties:
       bridged over by edge projection.
     type: boolean
     example: true
+  is_featured:
+    description: >
+      Whether this target's sequence is the one the objective's card surfaces.
+      A published revision has exactly one featured node.
+    type: boolean
+    example: false
+  target_position:
+    description: Where this goal sits among the objective's goals; null unless a target.
+    type: [integer, "null"]
+    example: 0
   note:
     type: [string, "null"]
     example: Optional curator note
-required: [guide_base_id, guide_id, is_target, is_included]
+required:
+  [
+    id,
+    guide_base_id,
+    guide_id,
+    is_target,
+    is_included,
+    is_featured,
+    target_position,
+  ]

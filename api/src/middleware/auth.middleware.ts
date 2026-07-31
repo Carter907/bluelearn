@@ -30,6 +30,11 @@ export const supabaseMiddleware =
       }
     );
 
+    if (token) {
+      const { error } = await supabase.auth.getClaims(token);
+      if (error) return c.json({ error: "Invalid or expired token" }, 401);
+    }
+
     c.set("supabase", supabase);
     await next();
   };

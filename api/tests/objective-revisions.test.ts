@@ -3,6 +3,7 @@ import app from "../src/index";
 import { auth, env, jsonAuth, makeUser } from "./helpers";
 import { grantRole } from "./factories/identity";
 import { createPublishedGuide } from "./factories/guides";
+import { createPrerequisite } from "./factories/graph";
 import {
   addObjectiveNode,
   createObjective,
@@ -83,42 +84,123 @@ describe("PATCH /objective-revisions/{id}", () => {
   });
 });
 
-describe("POST /objective-revisions/{id}/targets", () => {
-  it("adds a target and returns the recomputed snapshot", async () => {
+describe("PATCH /objective-revisions/{id} curation", () => {
+  it("seeds the closure, orders the targets, and records the sequence", async () => {
     const { curator, revision } = await curatorDraft();
-    const target = await createPublishedGuide();
+    const prereq = await createPublishedGuide();
+    const goal = await createPublishedGuide();
+    const other = await createPublishedGuide();
+    await createPrerequisite(prereq.base.id, goal.base.id);
 
     const res = await app.request(
-      `/objective-revisions/${revision.id}/targets`,
-      jsonAuth(curator.token, "POST", { guide_base_id: target.base.id }),
+      `/objective-revisions/${revision.id}`,
+      jsonAuth(curator.token, "PATCH", {
+        targets: [
+          {
+            guide_base_id: goal.base.id,
+            sequence: [prereq.base.id, goal.base.id],
+          },
+          { guide_base_id: other.base.id, is_featured: true, sequence: [] },
+        ],
+      }),
       env
     );
 
     expect(res.status).toBe(200);
-    await expectToMatchSpec(res, "POST", "/objective-revisions/{id}/targets");
+    await expectToMatchSpec(res, "PATCH", "/objective-revisions/{id}");
+
+    const snapshot = await app.request(
+      `/objective-revisions/${revision.id}`,
+      {},
+      env
+    );
+    const { snapshot: snap } = (await snapshot.json()) as {
+      snapshot: {
+        nodes: Array<{
+          id: string;
+          guide_base_id: string;
+          is_target: boolean;
+          is_featured: boolean;
+          target_position: number | null;
+        }>;
+        orders: Array<{
+          target_node_id: string;
+          node_id: string;
+          position: number;
+        }>;
+      };
+    };
+
+    const byBase = new Map(snap.nodes.map((n) => [n.guide_base_id, n]));
+    // The prerequisite was never named, only reached.
+    expect(byBase.has(prereq.base.id)).toBe(true);
+    expect(byBase.get(goal.base.id)?.target_position).toBe(0);
+    expect(byBase.get(other.base.id)?.target_position).toBe(1);
+    expect(byBase.get(other.base.id)?.is_featured).toBe(true);
+    expect(byBase.get(goal.base.id)?.is_featured).toBe(false);
+
+    const goalNodeId = byBase.get(goal.base.id)?.id;
+    const sequence = snap.orders
+      .filter((o) => o.target_node_id === goalNodeId)
+      .sort((a, b) => a.position - b.position)
+      .map((o) => o.node_id);
+    expect(sequence).toEqual([
+      byBase.get(prereq.base.id)?.id,
+      byBase.get(goal.base.id)?.id,
+    ]);
   });
-});
 
-describe("DELETE /objective-revisions/{id}/targets/{baseId}", () => {
-  it("removes a target and returns the recomputed snapshot", async () => {
+  it("drops nodes no longer reached once a target leaves", async () => {
     const { curator, revision } = await curatorDraft();
-    const target = await createPublishedGuide();
-    await addObjectiveNode(revision.id, target.base.id, target.guide.id, {
-      is_target: true,
-    });
+    const prereq = await createPublishedGuide();
+    const goal = await createPublishedGuide();
+    const kept = await createPublishedGuide();
+    await createPrerequisite(prereq.base.id, goal.base.id);
+
+    const patch = (targets: unknown) =>
+      app.request(
+        `/objective-revisions/${revision.id}`,
+        jsonAuth(curator.token, "PATCH", { targets }),
+        env
+      );
+
+    await patch([
+      { guide_base_id: goal.base.id },
+      { guide_base_id: kept.base.id },
+    ]);
+    await patch([{ guide_base_id: kept.base.id }]);
 
     const res = await app.request(
-      `/objective-revisions/${revision.id}/targets/${target.base.id}`,
-      { method: "DELETE", ...auth(curator.token) },
+      `/objective-revisions/${revision.id}`,
+      {},
+      env
+    );
+    const { snapshot } = (await res.json()) as {
+      snapshot: { nodes: Array<{ guide_base_id: string }> };
+    };
+    const bases = snapshot.nodes.map((n) => n.guide_base_id);
+    expect(bases).toEqual([kept.base.id]);
+  });
+
+  it("403s for a non-curator author", async () => {
+    const author = await makeUser();
+    const objective = await createObjective(author.userId);
+    const revision = await createObjectiveRevision(objective.id, {
+      author_id: author.userId,
+      status: "draft",
+    });
+    const goal = await createPublishedGuide();
+
+    const res = await app.request(
+      `/objective-revisions/${revision.id}`,
+      jsonAuth(author.token, "PATCH", {
+        targets: [{ guide_base_id: goal.base.id }],
+      }),
       env
     );
 
-    expect(res.status).toBe(200);
-    await expectToMatchSpec(
-      res,
-      "DELETE",
-      "/objective-revisions/{id}/targets/{baseId}"
-    );
+    expect(res.status).toBe(403);
+    await expectToMatchSpec(res, "PATCH", "/objective-revisions/{id}");
   });
 });
 

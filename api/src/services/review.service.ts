@@ -3,12 +3,10 @@ import type { DecisionReason, Pagination } from "@bluelearn/schemas";
 import type { Database } from "../database.types";
 import { ServiceError } from "../lib/service-error";
 import { PANEL_POLICY_DEFAULTS } from "../lib/review-policy";
+import { readingMinutes } from "../lib/reading";
 
 type DB = SupabaseClient<Database>;
 type ReviewOutcome = Database["public"]["Enums"]["review_outcome"];
-
-// -- Internal row shapes for single top-level casts --
-
 type QueueRow = {
   id: string;
   panel_id: string;
@@ -94,16 +92,26 @@ type CaseDetailRow = {
     guide_revision_id: string;
     guide_revisions: {
       id: string;
+      guide_id: string;
+      author_id: string | null;
       title: string | null;
       summary: string | null;
       body: string | null;
       status: string;
       created_at: string;
+      word_count: number;
+      guide_revision_subjects: Array<{
+        subjects: { id: string; name: string; status: string } | null;
+      }> | null;
     } | null;
   } | null;
 };
 
-// ---- Exports ----
+type TagsAndEdges = {
+  tags: Array<{ id: string; name: string; status: string }>;
+  prerequisites: Array<{ slug: string; title: string | null }>;
+  todos: Array<{ id: string; title: string }>;
+};
 
 export async function getReviewQueue(
   supabase: DB,
@@ -121,7 +129,7 @@ export async function getReviewQueue(
        )`
     )
     .eq("member_id", userId)
-    .eq("status", "assigned");
+    .in("status", ["assigned", "completed"]);
 
   if (error) {
     console.error(error);
@@ -211,7 +219,81 @@ export async function listReviewCases(supabase: DB) {
   }));
 }
 
-export async function getReviewCase(supabase: DB, caseId: string) {
+// The tags and edges a revision proposes. Uses service client because
+// draft tags and edges are unreachable through RLS.
+async function loadTagsAndEdges(
+  service: DB,
+  revisionId: string,
+  guideId: string
+): Promise<TagsAndEdges> {
+  const { data: guide, error: guideError } = await service
+    .from("guides")
+    .select("guide_base_id")
+    .eq("id", guideId)
+    .maybeSingle();
+
+  if (guideError) {
+    console.error(guideError);
+    throw new ServiceError("Failed to load revision tags and edges", 500);
+  }
+
+  const baseId = guide?.guide_base_id ?? null;
+
+  const [tagRes, edgeRes, todoRes] = await Promise.all([
+    service
+      .from("guide_revision_subjects")
+      .select("subjects(id, name, status)")
+      .eq("guide_revision_id", revisionId),
+    baseId
+      ? service
+          .from("guide_edges")
+          .select(
+            `from:guide_bases!from_guide_base_id(
+               slug,
+               canonical:guides!guide_bases_canonical_guide_id_fkey(
+                 current:guide_revisions!guides_current_revision_id_fkey(title)
+               )
+             )`
+          )
+          .eq("to_guide_base_id", baseId)
+          .eq("edge_type", "prerequisite")
+      : { data: [], error: null },
+    baseId
+      ? service
+          .from("todo_prerequisites")
+          .select("id, title")
+          .eq("dependent_guide_base_id", baseId)
+          .eq("status", "open")
+      : { data: [], error: null },
+  ]);
+
+  if (tagRes.error || edgeRes.error || todoRes.error) {
+    console.error(tagRes.error ?? edgeRes.error ?? todoRes.error);
+    throw new ServiceError("Failed to load revision tags and edges", 500);
+  }
+
+  return {
+    tags: (tagRes.data ?? [])
+      .map((r) => r.subjects)
+      .filter((s): s is NonNullable<typeof s> => !!s)
+      .map((s) => ({ id: s.id, name: s.name, status: s.status })),
+    prerequisites: (edgeRes.data ?? [])
+      .map((e) => e.from)
+      .filter((b): b is NonNullable<typeof b> & { slug: string } => !!b?.slug)
+      .map((b) => ({
+        slug: b.slug,
+        title: b.canonical?.current?.title ?? null,
+      })),
+    todos: (todoRes.data ?? []).map((t) => ({ id: t.id, title: t.title })),
+  };
+}
+
+export async function getReviewCase(
+  supabase: DB,
+  service: DB,
+  caseId: string,
+  viewerId: string | null
+) {
   const { data: raw, error } = await supabase
     .from("review_cases")
     .select(
@@ -228,7 +310,10 @@ export async function getReviewCase(supabase: DB, caseId: string) {
        ),
        guide_review_cases(
          guide_revision_id,
-         guide_revisions(id, title, summary, body, status, created_at)
+         guide_revisions(
+           id, guide_id, author_id, title, summary, body, status, created_at, word_count,
+           guide_revision_subjects(subjects(id, name, status))
+         )
        )`
     )
     .eq("id", caseId)
@@ -242,8 +327,51 @@ export async function getReviewCase(supabase: DB, caseId: string) {
   if (!raw) throw new ServiceError("Review case not found", 404);
 
   const data = raw as unknown as CaseDetailRow;
+  const revision = data.guide_review_cases?.guide_revisions ?? null;
   const latestPanel = data.review_panels[0] ?? null;
   const members = latestPanel?.panel_members ?? [];
+
+  const mapDecision = (
+    d: NonNullable<
+      CaseDetailRow["review_panels"][number]["panel_members"][number]["review_decisions"]
+    >
+  ) => ({
+    id: d.id,
+    decision: d.decision,
+    notes: d.notes,
+    reasons: d.review_decision_reasons?.map((r) => r.reason) ?? [],
+    created_at: d.created_at,
+  });
+
+  // Lets the reviewer come back to a review decision with their own data reseeded
+  // (vote, note, and reason).
+  const viewerVote =
+    viewerId === null
+      ? null
+      : (members.find((pm) => pm.member_id === viewerId)?.review_decisions ??
+        null);
+
+  const closed = data.status === "approved" || data.status === "rejected";
+  const isAuthor = viewerId !== null && revision?.author_id === viewerId;
+  const isPanelist =
+    viewerId !== null &&
+    data.review_panels.some((p) =>
+      p.panel_members.some((pm) => pm.member_id === viewerId)
+    );
+  const viewerRole = isPanelist ? "panelist" : isAuthor ? "author" : "public";
+
+  // An open case can only be seen by its author and its panel members.
+  if (viewerRole === "public" && !closed)
+    throw new ServiceError("You cannot view this review case", 403);
+
+  // Tags and edges are made public on closed cases, but while the case is open,
+  // only the author and the seats can see them.
+  const canSeeTagsAndEdges = closed || isAuthor || isPanelist;
+
+  const tagsAndEdges =
+    canSeeTagsAndEdges && revision
+      ? await loadTagsAndEdges(service, revision.id, revision.guide_id)
+      : null;
 
   return {
     case: {
@@ -263,17 +391,27 @@ export async function getReviewCase(supabase: DB, caseId: string) {
     })),
     decisions: members
       .filter((pm) => pm.review_decisions)
-      .map((pm) => {
-        const d = pm.review_decisions!;
-        return {
-          id: d.id,
-          decision: d.decision,
-          notes: d.notes,
-          reasons: d.review_decision_reasons?.map((r) => r.reason) ?? [],
-          created_at: d.created_at,
-        };
-      }),
-    revision: data.guide_review_cases?.guide_revisions ?? null,
+      .map((pm) => mapDecision(pm.review_decisions!)),
+    viewer_decision: viewerVote ? mapDecision(viewerVote) : null,
+    viewer_role: viewerRole,
+    revision: revision
+      ? {
+          id: revision.id,
+          title: revision.title,
+          summary: revision.summary,
+          body: revision.body,
+          status: revision.status,
+          created_at: revision.created_at,
+          duration_minutes: readingMinutes(revision.word_count),
+          tags:
+            tagsAndEdges?.tags ??
+            (revision.guide_revision_subjects ?? [])
+              .map((r) => r.subjects)
+              .filter((s): s is NonNullable<typeof s> => !!s),
+        }
+      : null,
+    prerequisites: tagsAndEdges?.prerequisites ?? [],
+    todos: tagsAndEdges?.todos ?? [],
   };
 }
 

@@ -10,6 +10,24 @@ properties:
     type: array
     items:
       $ref: "../objective-revisions/ObjectiveNode.yaml"
+  orders:
+    description: >
+      The curator's linear order: one row per placed node per target, so a topic
+      shared across targets can sit at a different position under each. This is
+      the objective's primary view; the edge sets below back the graph view.
+    type: array
+    items:
+      type: object
+      additionalProperties: false
+      properties:
+        target_node_id:
+          $ref: "../common/Uuid.yaml"
+        node_id:
+          $ref: "../common/Uuid.yaml"
+        position:
+          type: integer
+          minimum: 0
+      required: [target_node_id, node_id, position]
   projected_edges:
     description: >
       Hide-skipped view: the prerequisite edges among included nodes only,
@@ -38,4 +56,4 @@ properties:
         to_id:
           $ref: "../common/Uuid.yaml"
       required: [from_id, to_id]
-required: [nodes, projected_edges, raw_edges]
+required: [nodes, orders, projected_edges, raw_edges]

@@ -71,24 +71,15 @@
   get:
     tags: [guides]
     summary: Get a guide by slug
-    description: Canonical content of the guide plus its subject tags.
+    description: Canonical content of the guide with its author, tags, and prerequisites.
     operationId: getGuide
     responses:
       "200":
-        description: Guide content + subject tags
+        description: The guide's canonical content
         content:
           application/json:
             schema:
-              type: object
-              additionalProperties: false
-              properties:
-                guide:
-                  $ref: "../components/schemas/guides/Guide.yaml"
-                subjects:
-                  type: array
-                  items:
-                    $ref: "../components/schemas/subjects/SubjectTag.yaml"
-              required: [guide, subjects]
+              $ref: "../components/schemas/guides/Guide.yaml"
       "404":
         $ref: "../components/responses/_shared.yaml#/NotFound"
   delete:
@@ -143,7 +134,7 @@
     summary: Guide walkthrough (transitive prerequisite DAG)
     description: >
       Materializes the target's transitive prerequisite closure with
-      longest-path depths, plus the prerequisite edges among the nodes.
+      longest-path levels, plus the prerequisite edges among the nodes.
     operationId: getWalkthrough
     responses:
       "200":

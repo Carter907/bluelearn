@@ -5,7 +5,6 @@ export function createGuideBase(
 ) {
   return insert("guide_bases", {
     slug: `guide-${crypto.randomUUID()}`,
-    title: "Test Guide",
     knowledge_type: "theoretical",
     ...overrides,
   });
@@ -46,7 +45,6 @@ export async function createPublishedGuide(
   } = {}
 ) {
   const base = await createGuideBase({
-    title: opts.title ?? "Test Guide",
     slug: opts.slug ?? `guide-${crypto.randomUUID()}`,
     status: "published",
   });

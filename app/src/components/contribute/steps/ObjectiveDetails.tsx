@@ -13,53 +13,57 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Combobox } from "@/components/ui/combobox";
 
-import guidesData from "@/data/guides.json";
+type SubjectOption = { id: string; name: string };
+type GuideOption = {
+  slug: string | null;
+  title: string | null;
+  summary: string | null;
+};
 
 type PropTypes = {
   Stepper: any;
   objectiveContData: ObjectiveContribution;
   setObjectiveContData: Dispatch<SetStateAction<ObjectiveContribution>>;
+  subjects: Array<SubjectOption>;
+  guides: Array<GuideOption>;
+  onSaveDraft?: () => void;
+  submitting?: boolean;
 };
 
 export const ObjectiveDetails = ({
   Stepper,
   objectiveContData,
   setObjectiveContData,
+  subjects,
+  guides,
+  onSaveDraft,
+  submitting,
 }: PropTypes) => {
-  const guides = guidesData.map((g) => {
-    return {
-      value: g.slug,
-      label: g.title,
-      description: g.summary,
-    };
-  });
+  const guideItems = guides
+    .filter((g): g is GuideOption & { slug: string } => !!g.slug)
+    .map((g) => {
+      return {
+        value: g.slug,
+        label: g.title ?? g.slug,
+        description: g.summary ?? undefined,
+      };
+    });
 
   const targs = useMemo(
     () =>
-      guides.filter((item) => objectiveContData.targets.includes(item.value)),
-    [guides, objectiveContData.targets]
+      guideItems.filter((item) =>
+        objectiveContData.targets.includes(item.value)
+      ),
+    [guideItems, objectiveContData.targets]
   );
-
-  const isNextDisabled = useMemo(() => {
-    return (
-      objectiveContData.title.trim() === "" ||
-      objectiveContData.summary.trim() === "" ||
-      objectiveContData.targets.length === 0 ||
-      !objectiveContData.featured
-    );
-  }, [
-    objectiveContData.title,
-    objectiveContData.summary,
-    objectiveContData.targets,
-    objectiveContData.featured,
-  ]);
 
   return (
     <Stepper.Content step="objective-details">
       <StepperActionHeader
         title={"Objective Details"}
         Stepper={Stepper}
-        nextDisabled={isNextDisabled}
+        onSaveDraft={onSaveDraft}
+        submitting={submitting}
       />
 
       <FieldGroup>
@@ -121,6 +125,34 @@ export const ObjectiveDetails = ({
         <Field className="space-y-2">
           <div className="space-y-1">
             <FieldLabel required className="mono-micro">
+              Subjects
+            </FieldLabel>
+            <FieldDescription className="text-xs">
+              Select existing subjects for this learning objective.
+            </FieldDescription>
+          </div>
+
+          <Combobox
+            multiple
+            items={subjects.map((s) => {
+              return {
+                value: s.id,
+                label: s.name,
+              };
+            })}
+            value={objectiveContData.subjects}
+            onValueChange={(ids) =>
+              setObjectiveContData((prev) => ({
+                ...prev,
+                subjects: ids,
+              }))
+            }
+          />
+        </Field>
+
+        <Field className="space-y-2">
+          <div className="space-y-1">
+            <FieldLabel required className="mono-micro">
               Target Guides
             </FieldLabel>
             <FieldDescription className="text-xs">
@@ -131,12 +163,14 @@ export const ObjectiveDetails = ({
 
           <Combobox
             multiple
-            items={guides}
+            items={guideItems}
             value={objectiveContData.targets}
             onValueChange={(targets) => {
               setObjectiveContData((prev) => {
-                const featured = targets.includes(prev.featured)
-                  ? prev.featured
+                const featuredSubObjective = targets.includes(
+                  prev.featuredSubObjective
+                )
+                  ? prev.featuredSubObjective
                   : "";
                 const subObjectives = prev.subObjectives.filter((sub) =>
                   targets.includes(sub.targetSlug)
@@ -144,7 +178,7 @@ export const ObjectiveDetails = ({
                 return {
                   ...prev,
                   targets,
-                  featured,
+                  featuredSubObjective,
                   subObjectives,
                 };
               });
@@ -155,7 +189,7 @@ export const ObjectiveDetails = ({
         <Field className="space-y-2">
           <div className="space-y-1">
             <FieldLabel required className="mono-micro">
-              Featured Guide
+              Featured Sub-Objective
             </FieldLabel>
             <FieldDescription className="text-xs">
               {targs.length === 0
@@ -167,11 +201,11 @@ export const ObjectiveDetails = ({
           <Combobox
             disabled={targs.length === 0}
             items={targs}
-            value={objectiveContData.featured}
-            onValueChange={(featured) =>
+            value={objectiveContData.featuredSubObjective}
+            onValueChange={(featuredSubObjective) =>
               setObjectiveContData((prev) => ({
                 ...prev,
-                featured,
+                featuredSubObjective,
               }))
             }
           />

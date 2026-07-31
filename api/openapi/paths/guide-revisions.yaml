@@ -25,7 +25,42 @@
                   type: array
                   items:
                     $ref: "../components/schemas/subjects/SubjectTag.yaml"
-              required: [revision, subjects]
+                knowledge_type:
+                  description: >
+                    The guide's knowledge type, for resuming the draft. Null when
+                    the base is hidden from the caller (non-author on a draft base).
+                  type: [string, "null"]
+                is_variant:
+                  description: >
+                    True when the guide sits under a base whose canonical guide
+                    is a different one, so the draft resumes in the variant flow.
+                  type: boolean
+                base_slug:
+                  description: >
+                    Slug of the guide's base, used to preselect the base guide
+                    when resuming a variant draft.
+                  type: [string, "null"]
+                  example: calculus
+                prerequisites:
+                  description: Slugs of the guide's prerequisite guides.
+                  type: array
+                  items:
+                    type: string
+                todos:
+                  description: Titles of the guide's open todo prerequisites.
+                  type: array
+                  items:
+                    type: string
+              required:
+                [
+                  revision,
+                  subjects,
+                  knowledge_type,
+                  is_variant,
+                  base_slug,
+                  prerequisites,
+                  todos,
+                ]
       "404":
         $ref: "../components/responses/_shared.yaml#/NotFound"
   patch:
@@ -63,6 +98,8 @@
         $ref: "../components/responses/_shared.yaml#/Unauthorized"
       "404":
         $ref: "../components/responses/_shared.yaml#/NotFound"
+      "422":
+        $ref: "../components/responses/_shared.yaml#/Unprocessable"
 
 /guide-revisions/{id}/submit:
   parameters:

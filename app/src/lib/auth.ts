@@ -15,7 +15,10 @@ export async function signUp(
   return supabase.auth.signUp({
     email,
     password,
-    options: { data: { username } },
+    options: {
+      data: { username },
+      emailRedirectTo: `${window.location.origin}/login`,
+    },
   });
 }
 
@@ -31,6 +34,14 @@ export async function requestPasswordReset(email: string) {
 
 export async function updatePassword(password: string) {
   return supabase.auth.updateUser({ password });
+}
+
+// Sends verification email to old and new email.
+export async function updateEmail(email: string) {
+  return supabase.auth.updateUser(
+    { email },
+    { emailRedirectTo: `${window.location.origin}/settings/account` }
+  );
 }
 
 export async function getSession() {

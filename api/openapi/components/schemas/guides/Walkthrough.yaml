@@ -18,11 +18,31 @@ properties:
           example: Arithmetic
         summary:
           type: [string, "null"]
-        depth:
+        level:
           type: integer
-          description: Longest prerequisite-chain depth in this walkthrough (target = 0).
+          description: >
+            Longest prerequisite-chain hops ahead of this walkthrough's base
+            prerequisites (level = 1), so the target holds the highest level.
           example: 2
-      required: [id, slug, title, depth]
+        duration_minutes:
+          description: Estimated reading time, derived from the body's word count.
+          type: integer
+          example: 4
+        tags:
+          description: Subjects the guide is tagged with. slug links to the subject page.
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            properties:
+              slug:
+                type: string
+                example: math
+              name:
+                type: string
+                example: Mathematics
+            required: [slug, name]
+      required: [id, slug, title, level, duration_minutes, tags]
   edges:
     type: array
     items:

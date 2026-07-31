@@ -6,8 +6,9 @@ export type Guide = {
   author: string;
   summary: string;
   created_at: string;
-  duration: number;
-  tags: Array<string>;
+  duration?: number;
+  duration_minutes?: number;
+  tags: Array<any>;
   breadcrumbs: Array<string>;
   prerequisites: Array<string>;
   content: string;

@@ -112,7 +112,8 @@ export const objectiveRevisionsRouter = new Hono<HonoEnv>()
     return c.json({ revision, snapshot, subjects });
   })
 
-  // Overwrites a draft's metadata and/or tags. Returns { revision, subjects }; 404 if not an editable draft.
+  // Overwrites a draft's metadata, tags, and/or target curation. Returns
+  // { revision, subjects }; 404 if not an editable draft.
   .patch(
     "/:id",
     requireUser,
@@ -124,23 +125,12 @@ export const objectiveRevisionsRouter = new Hono<HonoEnv>()
     async (c) => {
       const { revision, subjects } = await updateObjectiveRevision(
         c.get("supabase"),
+        c.get("user").id,
         c.req.param("id"),
         c.req.valid("json")
       );
       return c.json({ revision, subjects });
     }
-  )
-
-  // Add a target: flag a base as a goal and pull its prerequisite closure into
-  // the node set. Returns the recomputed snapshot.
-  .post("/:id/targets", requireUser, (c) =>
-    c.json({ error: "Not implemented" }, 501)
-  )
-
-  // Remove a target: clear the flag and remove topics kept only to reach it.
-  // Returns the recomputed snapshot.
-  .delete("/:id/targets/:baseId", requireUser, (c) =>
-    c.json({ error: "Not implemented" }, 501)
   )
 
   // Edits one node of a draft. Returns { node }; 404 if missing or not editable.

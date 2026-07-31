@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 
 import { Separator } from "@/components/ui/separator";
 import { Button } from "@/components/ui/button";
@@ -54,6 +54,7 @@ function SubjectError() {
 function SubjectPage() {
   const { slug } = Route.useParams();
   const { subject, objectives, guides } = Route.useLoaderData();
+  const navigate = useNavigate();
 
   return (
     <div className="mx-auto max-w-[1280px] border-x bg-background">
@@ -131,7 +132,26 @@ function SubjectPage() {
                 ],
                 actionBtns: (
                   <div className="col-span-2 col-start-3 mt-5 flex items-center justify-around border-t-1 p-4 pt-8 lg:mt-0 lg:border-none lg:pt-4">
-                    <Button variant="outline" className="btn-sec" size="lg">
+                    <Button
+                      variant="outline"
+                      className="btn-sec"
+                      size="lg"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        navigate({
+                          to: "/guides/$slug/walkthrough",
+                          params: { slug: guide.slug ?? "" },
+                          state: {
+                            breadcrumbOrigin: {
+                              type: "subject",
+                              title: subject.name,
+                              path: `/subjects/${slug}`,
+                            },
+                          },
+                        });
+                      }}
+                    >
                       View Walkthrough
                     </Button>
 

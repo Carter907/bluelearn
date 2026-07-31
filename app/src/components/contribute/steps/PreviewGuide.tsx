@@ -1,13 +1,15 @@
 import "katex/dist/katex.min.css";
 
+import type { Guide } from "@bluelearn/schemas";
+import type { GuideType } from "@/types/guides";
 import { Separator } from "@/components/ui/separator";
 import { GuideReader } from "@/components/GuideReader";
 import { StepperActionHeader } from "@/components/contribute/StepperActionHeader";
 
 type PropTypes = {
   Stepper: any;
-  guide: any; // TODO: fix this type
-  guideType?: any; // TODO: fix this type
+  guide: Guide;
+  guideType?: GuideType;
   onSaveDraft: () => void;
   onPublish: () => void;
   submitting: boolean;

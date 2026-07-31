@@ -1,26 +1,33 @@
-import { useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { Replace } from "lucide-react";
 import type { Dispatch, SetStateAction } from "react";
 import type { ObjectiveContribution } from "@/types/contributions";
 import { StepperActionHeader } from "@/components/contribute/StepperActionHeader";
 import { FieldGroup } from "@/components/ui/field";
-import guidesData from "@/data/guides.json";
 import { Button } from "@/components/ui/button";
 import { DraggableGuideCard } from "@/components/contribute/DraggableGuideCard";
-
-const guidesMap = new Map(guidesData.map((g) => [g.slug, g]));
 
 type PropTypes = {
   Stepper: any;
   objectiveContData: ObjectiveContribution;
   setObjectiveContData: Dispatch<SetStateAction<ObjectiveContribution>>;
+  onSaveDraft?: () => void;
+  submitting?: boolean;
+  guides: Array<any>;
 };
 
 export const OrderTargetGuides = ({
   Stepper,
   objectiveContData,
   setObjectiveContData,
+  onSaveDraft,
+  submitting,
+  guides,
 }: PropTypes) => {
+  const guidesMap = useMemo(
+    () => new Map(guides.map((g) => [g.slug, g])),
+    [guides]
+  );
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
   const draggedIndexRef = useRef<number | null>(null);
 
@@ -60,7 +67,12 @@ export const OrderTargetGuides = ({
       step="target-ordering"
       className="flex min-h-0 w-full flex-1 flex-col"
     >
-      <StepperActionHeader title={"Order Target Guides"} Stepper={Stepper} />
+      <StepperActionHeader
+        title={"Order Target Guides"}
+        Stepper={Stepper}
+        onSaveDraft={onSaveDraft}
+        submitting={submitting}
+      />
 
       <FieldGroup className="mt-4 flex min-h-0 flex-1 flex-col">
         <p className="mb-4 shrink-0 text-sm text-muted-foreground">

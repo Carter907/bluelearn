@@ -6,14 +6,14 @@ import remarkGfm from "remark-gfm";
 import remarkMath from "remark-math";
 
 import { Calendar, Clock, User } from "lucide-react";
-import type { SubjectReference } from "@/types/subjects";
-import type { GuideType, HydratedGuide } from "@/types/guides";
+import type { Guide } from "@bluelearn/schemas";
+import type { GuideType } from "@/types/guides";
 import type { ReactElement } from "react";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components//ui/badge";
 import { CodeBlock } from "@/components/CodeBlock";
 
-import { formatDuration } from "@/lib/guideUtils";
+import { formatDate, formatDuration } from "@/lib/guideUtils";
 
 const sanitizeSchema = {
   ...defaultSchema,
@@ -23,12 +23,23 @@ const sanitizeSchema = {
   },
 };
 
+// Tags only render as a name badge here, and a guide under review can carry
+// subjects whose slug is not minted yet, so either identifier will do.
+type ReaderTag = { id?: string; slug?: string; name: string };
+
+export type ReaderGuide = Omit<Guide, "tags"> & { tags: Array<ReaderTag> };
+
 type PropTypes = {
-  guide: HydratedGuide;
+  guide: ReaderGuide;
   guideType?: GuideType;
 };
 
 export const GuideReader = ({ guide, guideType }: PropTypes) => {
+  const created = new Date(guide.created_at);
+  const createdLabel = Number.isNaN(created.getTime())
+    ? guide.created_at
+    : formatDate(created);
+
   return (
     <>
       <header className="mb-5">
@@ -46,36 +57,41 @@ export const GuideReader = ({ guide, guideType }: PropTypes) => {
         </div>
 
         <div className="mono-micro my-2 flex flex-wrap items-center gap-2.5 text-muted-foreground/80">
-          <span className="flex items-center gap-1">
-            <User className="h-3 w-3 text-muted-foreground/75" />@{guide.author}
-          </span>
+          {guide.author && (
+            <span className="flex items-center gap-1">
+              <User className="h-3 w-3 text-muted-foreground/75" />@
+              {guide.author}
+            </span>
+          )}
           <span className="flex items-center gap-1">
             <Calendar className="h-3 w-3 text-muted-foreground/75" />
-            {guide.created_at}
+            {createdLabel}
           </span>
           <span className="flex items-center gap-1">
             <Clock className="h-3 w-3 text-muted-foreground/75" />
-            {formatDuration(guide.duration)}m
+            {formatDuration(guide.duration_minutes)}
           </span>
         </div>
 
-        <div className="my-4 flex gap-2">
-          {guide.tags.map((tag: SubjectReference) => (
-            <Badge
-              key={tag.slug}
-              variant="outline"
-              className="mono-micro rounded-full border bg-badge tracking-[0.08em] text-badge-foreground"
-            >
-              {tag.name}
-            </Badge>
-          ))}
-        </div>
+        {guide.tags.length > 0 && (
+          <div className="mt-3 flex flex-wrap gap-2">
+            {guide.tags.map((tag: ReaderTag) => (
+              <Badge
+                key={tag.id ?? tag.slug ?? tag.name}
+                variant="outline"
+                className="mono-micro rounded-full border bg-badge tracking-[0.08em] text-badge-foreground"
+              >
+                {tag.name}
+              </Badge>
+            ))}
+          </div>
+        )}
 
-        <div>
-          <p className="py-4 text-sm whitespace-pre-line text-muted-foreground">
+        {guide.summary && (
+          <p className="mt-3 text-sm whitespace-pre-line text-muted-foreground">
             {guide.summary}
           </p>
-        </div>
+        )}
       </header>
 
       <Separator className="mb-8" />
@@ -114,7 +130,7 @@ export const GuideReader = ({ guide, guideType }: PropTypes) => {
             },
           }}
         >
-          {guide.content}
+          {guide.body ?? ""}
         </ReactMarkdown>
       </article>
     </>

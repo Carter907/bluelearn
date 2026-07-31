@@ -80,11 +80,54 @@
                   type: array
                   items:
                     $ref: "../components/schemas/reviews/ReviewDecision.yaml"
+                viewer_role:
+                  type: string
+                  enum: [author, panelist, public]
+                  description: >
+                    The caller's standing on this case. public is only ever
+                    returned once the case has closed; an open case is 403 to
+                    everyone but its author and its seats.
+                  example: panelist
+                viewer_decision:
+                  description: >
+                    The caller's own vote on this case, so an editable decision
+                    can be reseeded. Null when the caller holds no seat or has
+                    not voted yet.
+                  oneOf:
+                    - $ref: "../components/schemas/reviews/ReviewDecision.yaml"
+                    - type: "null"
                 revision:
                   oneOf:
                     - $ref: "../components/schemas/reviews/GuideRevisionSummary.yaml"
                     - type: "null"
-              required: [case, panel, decisions, revision]
+                prerequisites:
+                  type: array
+                  description: >
+                    Published guides the submission declares as prerequisites.
+                    Empty unless the case has closed or the caller is the author
+                    or a seated panelist.
+                  items:
+                    $ref: "../components/schemas/reviews/SubmittedPrerequisite.yaml"
+                todos:
+                  type: array
+                  description: >
+                    Prerequisite topics the submission says are still missing.
+                    Gated the same way as prerequisites.
+                  items:
+                    $ref: "../components/schemas/reviews/SubmittedTodo.yaml"
+              required:
+                [
+                  case,
+                  panel,
+                  decisions,
+                  viewer_role,
+                  viewer_decision,
+                  revision,
+                  prerequisites,
+                  todos,
+                ]
+      "403":
+        $ref: "../components/responses/_shared.yaml#/Forbidden"
       "404":
         $ref: "../components/responses/_shared.yaml#/NotFound"
 
